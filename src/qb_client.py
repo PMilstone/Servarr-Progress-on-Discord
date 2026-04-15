@@ -22,15 +22,14 @@ class QBClient:
         items = r.json()
         torrents = []
         for t in items:
-            progress = t.get("progress", 0.0)
-            if progress >= 0.9999:
-                torrents.append({
-                    "name": t.get("name", "unknown"),
-                    "completion_on": t.get("completion_on", 0),
-                    "size": t.get("size", 0)
-                })
-                    "state": t.get("state", "")
-                })
+            torrents.append({
+                "name": t.get("name", "unknown"),
+                "progress": t.get("progress", 0.0),
+                "dlspeed": t.get("dlspeed", 0),
+                "ulspeed": t.get("upspeed", 0),
+                "size": t.get("size", 0),
+                "state": t.get("state", "")
+            })
         return torrents
 
     def get_recent_completed_torrents(self, limit: int = 5) -> List[Dict]:
@@ -40,8 +39,8 @@ class QBClient:
         items = r.json()
         torrents = []
         for t in items:
-            # Filter by progress = 100% (completed)
-            if t.get("progress", 0) == 1.0:
+            progress = t.get("progress", 0.0)
+            if progress >= 0.9999:
                 torrents.append({
                     "name": t.get("name", "unknown"),
                     "completion_on": t.get("completion_on", 0),
