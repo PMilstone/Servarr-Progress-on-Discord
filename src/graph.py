@@ -154,6 +154,12 @@ def make_embed(active_torrents: List[Dict], completed_torrents: List[Dict], opti
                 "value": value,
                 "inline": False,
             })
+    else:
+        fields.append({
+            "name": "Active Downloads",
+            "value": "_No active downloads._",
+            "inline": False,
+        })
     
     # Completed torrents section
     if completed_torrents:
