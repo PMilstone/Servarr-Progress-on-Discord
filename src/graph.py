@@ -86,6 +86,13 @@ def _format_eta(progress: float, time_active: int, eta_seconds: int) -> str:
         return "Calculating..."
     return _human_duration(eta_seconds)
 
+def _rainbow_progress_bar(progress_ratio: float, length: int = 20) -> str:
+    colors = ["🟦", "🟩", "🟨", "🟧", "🟥", "🟪"]
+    safe_ratio = max(0.0, min(1.0, progress_ratio))
+    filled = int(safe_ratio * length)
+    bar = "".join(colors[i % len(colors)] for i in range(filled))
+    return bar + ("⬜" * (length - filled))
+
 def make_text_progress(torrents: List[Dict]) -> str:
     if not torrents:
         return "No active torrents"
@@ -93,14 +100,14 @@ def make_text_progress(torrents: List[Dict]) -> str:
     lines = ["**Active Torrent Progress:**\n"]
     for t in torrents:
         name = t["name"]
-        progress = t["progress"] * 100
+        progress_ratio = t["progress"]
+        progress = progress_ratio * 100
         dls = _human_speed(t.get("dlspeed", 0))
         uls = _human_speed(t.get("ulspeed", 0))
 
         # Create progress bar with emojis
         bar_length = 20
-        filled = int(progress / 100 * bar_length)
-        bar = "█" * filled + "░" * (bar_length - filled)
+        bar = _rainbow_progress_bar(progress_ratio, bar_length)
 
         line = f"**{name}**\n{bar} {progress:.1f}%\n↓ {dls} ↑ {uls}\n\n"
         lines.append(line)
@@ -122,9 +129,9 @@ def make_embed(active_torrents: List[Dict], completed_torrents: List[Dict], opti
         bar_length = 20
         for t in active_torrents[:25]:
             name = _format_title(t["name"])
-            progress = t["progress"] * 100
-            filled = int(progress / 100 * bar_length)
-            bar = "█" * filled + "░" * (bar_length - filled)
+            progress_ratio = t["progress"]
+            progress = progress_ratio * 100
+            bar = _rainbow_progress_bar(progress_ratio, bar_length)
             details = []
             if show_download_speed:
                 details.append(f"↓ {_human_speed(t.get('dlspeed', 0))}")
