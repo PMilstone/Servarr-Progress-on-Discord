@@ -89,7 +89,9 @@ def _format_eta(progress: float, time_active: int, eta_seconds: int) -> str:
 def _rainbow_progress_bar(progress_ratio: float, length: int = 12) -> str:
     colors = ["🟦", "🟦", "🟩", "🟩", "🟨", "🟨", "🟧", "🟧", "🟥", "🟥", "🟪", "🟪"]
     safe_ratio = max(0.0, min(1.0, progress_ratio))
-    filled = int(safe_ratio * length)
+    filled = int(round(safe_ratio * length))
+    if safe_ratio > 0 and filled == 0:
+        filled = 1
     bar = "".join(colors[i % len(colors)] for i in range(filled))
     return bar + ("⬜" * (length - filled))
 

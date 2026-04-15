@@ -16,9 +16,9 @@ class QBClient:
         return r.status_code == 200 and r.text != "Fails."
 
     @staticmethod
-    def _has_allowed_tag(raw_tags: str) -> bool:
-        tags = {tag.strip().lower() for tag in (raw_tags or "").split(",") if tag.strip()}
-        return "tv-arr" in tags or "movies-arr" in tags
+    def _has_allowed_category(raw_category: str) -> bool:
+        category_text = (raw_category or "").lower()
+        return "tv-arr" in category_text or "movies-arr" in category_text
 
     def get_active_torrents(self) -> List[Dict]:
         url = f"{self.base_url}/api/v2/torrents/info?filter=active"
@@ -35,7 +35,7 @@ class QBClient:
         }
         torrents = []
         for t in items:
-            if not self._has_allowed_tag(t.get("tags", "")):
+            if not self._has_allowed_category(t.get("category", "")):
                 continue
 
             progress = t.get("progress", 0.0)
@@ -63,7 +63,7 @@ class QBClient:
         items = r.json()
         torrents = []
         for t in items:
-            if not self._has_allowed_tag(t.get("tags", "")):
+            if not self._has_allowed_category(t.get("category", "")):
                 continue
 
             progress = t.get("progress", 0.0)
