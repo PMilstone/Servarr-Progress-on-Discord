@@ -29,6 +29,9 @@ def _human_timestamp(ts: int) -> str:
     return datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M')
 
 def _format_title(raw_name: str) -> str:
+    # Remove leading uploader/group tags like [YTS], [RARBG], etc.
+    raw_name = re.sub(r"^\s*(\[[^\]]+\]\s*)+", "", raw_name)
+
     # Remove extension-like suffixes and normalize separators.
     name = re.sub(r"\.[A-Za-z0-9]{2,4}$", "", raw_name)
     name = name.replace("_", " ").replace(".", " ")
