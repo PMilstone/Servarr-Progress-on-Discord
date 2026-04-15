@@ -44,11 +44,8 @@ def webhook():
 
     active_torrents = qb.get_active_torrents()
     completed_torrents = qb.get_recent_completed_torrents(5)
-    
-    if not active_torrents and not completed_torrents:
-        return jsonify({"status": "no torrents"}), 200
 
-    # Update the embed
+    # Update the embed even if there are no active torrents
     embed = make_embed(active_torrents, completed_torrents)
     message_id = cfg.get("MESSAGE_ID")
     try:
