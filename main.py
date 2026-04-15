@@ -19,6 +19,17 @@ def load_config():
         "MESSAGE_ID": os.getenv("MESSAGE_ID"),
     }
 
+def run_status_update(cfg: dict) -> None:
+    qb = QBClient(cfg["QB_URL"], cfg.get("QB_USER"), cfg.get("QB_PASS"))
+    if not qb.login():
+        raise RuntimeError("qBittorrent login failed")
+
+    active_torrents = qb.get_active_torrents()
+    completed_torrents = qb.get_recent_completed_torrents(5)
+
+    embed = make_embed(active_torrents, completed_torrents)
+    send_embed(cfg["WEBHOOK_URL"], embed, cfg.get("MESSAGE"), cfg.get("MESSAGE_ID"))
+
 @app.route('/webhook', methods=['GET', 'POST'])
 def webhook():
     cfg = load_config()
@@ -37,19 +48,8 @@ def webhook():
     if event_type not in ["Grab", "Download", "Import"]:
         return jsonify({"status": "ignored", "event": event_type}), 200
 
-    # Check for torrents
-    qb = QBClient(cfg["QB_URL"], cfg.get("QB_USER"), cfg.get("QB_PASS"))
-    if not qb.login():
-        return jsonify({"error": "qBittorrent login failed"}), 500
-
-    active_torrents = qb.get_active_torrents()
-    completed_torrents = qb.get_recent_completed_torrents(5)
-
-    # Update the embed even if there are no active torrents
-    embed = make_embed(active_torrents, completed_torrents)
-    message_id = cfg.get("MESSAGE_ID")
     try:
-        send_embed(cfg["WEBHOOK_URL"], embed, cfg.get("MESSAGE"), message_id)
+        run_status_update(cfg)
         return jsonify({"status": "updated"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -57,4 +57,12 @@ def webhook():
 if __name__ == "__main__":
     cfg = load_config()
     print(f"Starting webhook server on port {cfg['PORT']}")
+    if cfg.get("WEBHOOK_URL"):
+        try:
+            run_status_update(cfg)
+            print("Startup status check completed.")
+        except Exception as e:
+            print(f"Startup status check failed: {e}")
+    else:
+        print("Startup status check skipped: WEBHOOK_URL not set.")
     app.run(host='0.0.0.0', port=cfg['PORT'])
