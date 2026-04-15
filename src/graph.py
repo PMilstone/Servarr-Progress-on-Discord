@@ -26,11 +26,14 @@ def _human_duration(seconds: int) -> str:
 def _human_timestamp(ts: int) -> str:
     if not ts or ts <= 0:
         return "Unknown"
-    return datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M')
+    return datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %I:%M %p')
 
 def _format_title(raw_name: str) -> str:
     # Remove leading uploader/group tags like [YTS], [RARBG], etc.
     raw_name = re.sub(r"^\s*(\[[^\]]+\]\s*)+", "", raw_name)
+    # Preserve trailing bracketed year (e.g. [2009]) before dropping other bracket metadata.
+    trailing_year_match = re.search(r"\[(19\d{2}|20\d{2})\]\s*$", raw_name)
+    trailing_year = trailing_year_match.group(1) if trailing_year_match else ""
     # Remove trailing bracket metadata blocks, including dangling/incomplete brackets.
     raw_name = re.sub(r"\s*(\[[^\]]*\]\s*)+$", "", raw_name)
     raw_name = re.sub(r"\s*\[[^\]]*$", "", raw_name)
@@ -42,7 +45,7 @@ def _format_title(raw_name: str) -> str:
 
     # Find year in a sensible range.
     year_match = re.search(r"\b(19\d{2}|20\d{2})\b", name)
-    year = year_match.group(1) if year_match else ""
+    year = year_match.group(1) if year_match else trailing_year
 
     # Trim common release metadata after the title.
     cut_tokens = [
@@ -145,7 +148,7 @@ def make_embed(active_torrents: List[Dict], completed_torrents: List[Dict], opti
             completion_time = datetime.datetime.fromtimestamp(t["completion_on"])
             bar = "█" * 20
             completed_list.append(
-                f"✅ {name} - {completion_time.strftime('%Y-%m-%d %H:%M')}\n{bar} 100.0%"
+                f"✅ {name} - {completion_time.strftime('%Y-%m-%d %I:%M %p')}\n{bar} 100.0%"
             )
         
         if completed_list:
