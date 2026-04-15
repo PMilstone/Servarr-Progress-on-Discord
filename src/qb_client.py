@@ -40,6 +40,9 @@ class QBClient:
                 "progress": progress,
                 "dlspeed": t.get("dlspeed", 0),
                 "ulspeed": t.get("upspeed", 0),
+                "eta": t.get("eta", -1),
+                "added_on": t.get("added_on", 0),
+                "time_active": t.get("time_active", 0),
                 "size": t.get("size", 0),
                 "state": state
             })

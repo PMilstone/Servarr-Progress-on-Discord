@@ -8,6 +8,31 @@ def _human_speed(bps: int) -> str:
         return f"{bps/1_000:.2f} kB/s"
     return f"{bps} B/s"
 
+def _human_duration(seconds: int) -> str:
+    if seconds is None or seconds < 0:
+        return "Unknown"
+    days, rem = divmod(int(seconds), 86400)
+    hours, rem = divmod(rem, 3600)
+    minutes, secs = divmod(rem, 60)
+    if days > 0:
+        return f"{days}d {hours}h {minutes}m"
+    if hours > 0:
+        return f"{hours}h {minutes}m"
+    if minutes > 0:
+        return f"{minutes}m {secs}s"
+    return f"{secs}s"
+
+def _human_timestamp(ts: int) -> str:
+    if not ts or ts <= 0:
+        return "Unknown"
+    return datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M')
+
+def _format_eta(progress: float, time_active: int, eta_seconds: int) -> str:
+    # qBittorrent ETA can be noisy at startup. Hold until either threshold is reached.
+    if progress < 0.10 and time_active < 60:
+        return "Calculating..."
+    return _human_duration(eta_seconds)
+
 def make_text_progress(torrents: List[Dict]) -> str:
     if not torrents:
         return "No active torrents"
@@ -29,7 +54,14 @@ def make_text_progress(torrents: List[Dict]) -> str:
 
     return "".join(lines)
 
-def make_embed(active_torrents: List[Dict], completed_torrents: List[Dict]) -> Dict[str, object]:
+def make_embed(active_torrents: List[Dict], completed_torrents: List[Dict], options: Dict[str, bool] | None = None) -> Dict[str, object]:
+    options = options or {}
+    show_download_speed = options.get("show_download_speed", True)
+    show_upload_speed = options.get("show_upload_speed", True)
+    show_eta = options.get("show_eta", True)
+    show_time_added = options.get("show_time_added", True)
+    show_time_since_started = options.get("show_time_since_started", True)
+
     fields = []
     
     # Active torrents section
@@ -38,11 +70,25 @@ def make_embed(active_torrents: List[Dict], completed_torrents: List[Dict]) -> D
         for t in active_torrents[:25]:
             name = t["name"]
             progress = t["progress"] * 100
-            dls = _human_speed(t.get("dlspeed", 0))
-            uls = _human_speed(t.get("ulspeed", 0))
             filled = int(progress / 100 * bar_length)
             bar = "█" * filled + "░" * (bar_length - filled)
-            value = f"{bar} {progress:.1f}%\n↓ {dls} ↑ {uls}"
+            details = []
+            if show_download_speed:
+                details.append(f"↓ {_human_speed(t.get('dlspeed', 0))}")
+            if show_upload_speed:
+                details.append(f"↑ {_human_speed(t.get('ulspeed', 0))}")
+            if show_eta:
+                details.append(
+                    f"ETA: {_format_eta(t.get('progress', 0.0), t.get('time_active', 0), t.get('eta', -1))}"
+                )
+            if show_time_added:
+                details.append(f"Added {_human_timestamp(t.get('added_on', 0))}")
+            if show_time_since_started:
+                details.append(f"Active {_human_duration(t.get('time_active', 0))}")
+
+            value = f"{bar} {progress:.1f}%"
+            if details:
+                value = value + "\n" + " | ".join(details)
             fields.append({
                 "name": name[:256],
                 "value": value,
@@ -69,14 +115,14 @@ def make_embed(active_torrents: List[Dict], completed_torrents: List[Dict]) -> D
     
     if not fields:
         return {
-            "title": "qBittorrent Status",
-            "description": "No torrents found.",
+            "title": "Download Progress",
+            "description": "No downloads found.",
             "color": 3447003,
         }
 
     return {
-        "title": "qBittorrent Status",
-        "description": "Active and recent completed torrents tagged tv-arr or movies-arr.",
+        "title": "Download Progress",
+        "description": "",
         "color": 3447003,
         "fields": fields,
     }

@@ -28,6 +28,11 @@ python main.py
   - `QB_URL`, `QB_USER`, `QB_PASS`: qBittorrent settings
   - `MESSAGE_ID`: Optional, message ID to edit instead of sending new
   - `MESSAGE`: Optional, text to include with the embed
+  - `EMBED_SHOW_DOWNLOAD_SPEED`: Show download speed in active torrent rows
+  - `EMBED_SHOW_UPLOAD_SPEED`: Show upload speed in active torrent rows
+  - `EMBED_SHOW_ETA`: Show ETA in active torrent rows
+  - `EMBED_SHOW_TIME_ADDED`: Show the torrent added timestamp
+  - `EMBED_SHOW_TIME_SINCE_STARTED`: Show active time duration
 
 ## How it works
 - The server listens for POST requests to `/webhook` from Sonarr/Radarr.

@@ -7,6 +7,12 @@ from src.discord_webhook import send_embed
 
 app = Flask(__name__)
 
+def _env_bool(name: str, default: bool = True) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
 def load_config():
     load_dotenv()
     return {
@@ -17,6 +23,11 @@ def load_config():
         "QB_PASS": os.getenv("QB_PASS"),
         "MESSAGE": os.getenv("MESSAGE"),
         "MESSAGE_ID": os.getenv("MESSAGE_ID"),
+        "EMBED_SHOW_DOWNLOAD_SPEED": _env_bool("EMBED_SHOW_DOWNLOAD_SPEED", True),
+        "EMBED_SHOW_UPLOAD_SPEED": _env_bool("EMBED_SHOW_UPLOAD_SPEED", True),
+        "EMBED_SHOW_ETA": _env_bool("EMBED_SHOW_ETA", True),
+        "EMBED_SHOW_TIME_ADDED": _env_bool("EMBED_SHOW_TIME_ADDED", True),
+        "EMBED_SHOW_TIME_SINCE_STARTED": _env_bool("EMBED_SHOW_TIME_SINCE_STARTED", True),
     }
 
 def run_status_update(cfg: dict) -> None:
@@ -27,7 +38,14 @@ def run_status_update(cfg: dict) -> None:
     active_torrents = qb.get_active_torrents()
     completed_torrents = qb.get_recent_completed_torrents(5)
 
-    embed = make_embed(active_torrents, completed_torrents)
+    embed_options = {
+        "show_download_speed": cfg.get("EMBED_SHOW_DOWNLOAD_SPEED", True),
+        "show_upload_speed": cfg.get("EMBED_SHOW_UPLOAD_SPEED", True),
+        "show_eta": cfg.get("EMBED_SHOW_ETA", True),
+        "show_time_added": cfg.get("EMBED_SHOW_TIME_ADDED", True),
+        "show_time_since_started": cfg.get("EMBED_SHOW_TIME_SINCE_STARTED", True),
+    }
+    embed = make_embed(active_torrents, completed_torrents, embed_options)
     send_embed(cfg["WEBHOOK_URL"], embed, cfg.get("MESSAGE"), cfg.get("MESSAGE_ID"))
 
 @app.route('/webhook', methods=['GET', 'POST'])
