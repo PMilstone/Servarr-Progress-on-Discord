@@ -35,15 +35,19 @@ class QBClient:
         return torrents
 
     def get_recent_completed_torrents(self, limit: int = 5) -> List[Dict]:
-        url = f"{self.base_url}/api/v2/torrents/info?filter=completed&sort=completion_on&reverse=true&limit={limit}"
+        url = f"{self.base_url}/api/v2/torrents/info?filter=all"
         r = self.session.get(url)
         r.raise_for_status()
         items = r.json()
         torrents = []
         for t in items:
-            torrents.append({
-                "name": t.get("name", "unknown"),
-                "completion_on": t.get("completion_on", 0),
-                "size": t.get("size", 0)
-            })
+            # Filter by progress = 100% (completed)
+            if t.get("progress", 0) == 1.0:
+                torrents.append({
+                    "name": t.get("name", "unknown"),
+                    "completion_on": t.get("completion_on", 0),
+                    "size": t.get("size", 0)
+                })
+        # Sort by completion time, most recent first
+        torrents.sort(key=lambda x: x["completion_on"], reverse=True)
         return torrents[:limit]
