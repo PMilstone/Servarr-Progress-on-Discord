@@ -1,4 +1,6 @@
 import os
+import threading
+import time
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 from src.qb_client import QBClient
@@ -6,6 +8,8 @@ from src.graph import make_embed
 from src.discord_webhook import send_embed
 
 app = Flask(__name__)
+_active_monitor_thread = None
+_active_monitor_lock = threading.Lock()
 
 def _env_bool(name: str, default: bool = True) -> bool:
     value = os.getenv(name)
@@ -18,6 +22,7 @@ def load_config():
     return {
         "WEBHOOK_URL": os.getenv("WEBHOOK_URL"),
         "PORT": int(os.getenv("PORT", 5000)),
+        "ACTIVE_UPDATE_INTERVAL": int(os.getenv("ACTIVE_UPDATE_INTERVAL", 15)),
         "QB_URL": os.getenv("QB_URL", "http://127.0.0.1:8080"),
         "QB_USER": os.getenv("QB_USER"),
         "QB_PASS": os.getenv("QB_PASS"),
@@ -30,7 +35,7 @@ def load_config():
         "EMBED_SHOW_TIME_SINCE_STARTED": _env_bool("EMBED_SHOW_TIME_SINCE_STARTED", True),
     }
 
-def run_status_update(cfg: dict) -> None:
+def run_status_update(cfg: dict) -> bool:
     qb = QBClient(cfg["QB_URL"], cfg.get("QB_USER"), cfg.get("QB_PASS"))
     if not qb.login():
         raise RuntimeError("qBittorrent login failed")
@@ -47,6 +52,33 @@ def run_status_update(cfg: dict) -> None:
     }
     embed = make_embed(active_torrents, completed_torrents, embed_options)
     send_embed(cfg["WEBHOOK_URL"], embed, cfg.get("MESSAGE"), cfg.get("MESSAGE_ID"))
+    return len(active_torrents) > 0
+
+def _monitor_active_downloads() -> None:
+    while True:
+        cfg = load_config()
+        if not cfg.get("WEBHOOK_URL"):
+            break
+
+        try:
+            has_active = run_status_update(cfg)
+        except Exception as e:
+            print(f"Active download monitor error: {e}")
+            break
+
+        if not has_active:
+            break
+
+        interval = max(1, int(cfg.get("ACTIVE_UPDATE_INTERVAL", 15)))
+        time.sleep(interval)
+
+def ensure_active_monitor_running() -> None:
+    global _active_monitor_thread
+    with _active_monitor_lock:
+        if _active_monitor_thread and _active_monitor_thread.is_alive():
+            return
+        _active_monitor_thread = threading.Thread(target=_monitor_active_downloads, daemon=True)
+        _active_monitor_thread.start()
 
 @app.route('/webhook', methods=['GET', 'POST'])
 def webhook():
@@ -67,8 +99,10 @@ def webhook():
         return jsonify({"status": "ignored", "event": event_type}), 200
 
     try:
-        run_status_update(cfg)
-        return jsonify({"status": "updated"}), 200
+        has_active = run_status_update(cfg)
+        if has_active:
+            ensure_active_monitor_running()
+        return jsonify({"status": "updated", "active": has_active}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -77,7 +111,9 @@ if __name__ == "__main__":
     print(f"Starting webhook server on port {cfg['PORT']}")
     if cfg.get("WEBHOOK_URL"):
         try:
-            run_status_update(cfg)
+            has_active = run_status_update(cfg)
+            if has_active:
+                ensure_active_monitor_running()
             print("Startup status check completed.")
         except Exception as e:
             print(f"Startup status check failed: {e}")

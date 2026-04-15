@@ -25,6 +25,7 @@ python main.py
 - Copy `.env.example` to `.env` and set:
   - `WEBHOOK_URL`: Your Discord webhook URL
   - `PORT`: Port for the webhook server (default 5000)
+  - `ACTIVE_UPDATE_INTERVAL`: Poll interval (seconds) while active downloads exist
   - `QB_URL`, `QB_USER`, `QB_PASS`: qBittorrent settings
   - `MESSAGE_ID`: Optional, message ID to edit instead of sending new
   - `MESSAGE`: Optional, text to include with the embed
