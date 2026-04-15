@@ -1,5 +1,6 @@
 from typing import List, Dict
 import datetime
+import re
 
 def _human_speed(bps: int) -> str:
     if bps >= 1_000_000:
@@ -26,6 +27,41 @@ def _human_timestamp(ts: int) -> str:
     if not ts or ts <= 0:
         return "Unknown"
     return datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %H:%M')
+
+def _format_title(raw_name: str) -> str:
+    # Remove extension-like suffixes and normalize separators.
+    name = re.sub(r"\.[A-Za-z0-9]{2,4}$", "", raw_name)
+    name = name.replace("_", " ").replace(".", " ")
+    name = re.sub(r"\s+", " ", name).strip()
+
+    # Find year in a sensible range.
+    year_match = re.search(r"\b(19\d{2}|20\d{2})\b", name)
+    year = year_match.group(1) if year_match else ""
+
+    # Trim common release metadata after the title.
+    cut_tokens = [
+        " 2160p", " 1080p", " 720p", " x264", " x265", " h264", " h265",
+        " bluray", " web-dl", " webrip", " dvdrip", " remux", " proper", " repack",
+        " yify", " rarbg", " dts", " aac", " hdr", " hevc", " atmos", " season ", " s01",
+    ]
+    lower_name = name.lower()
+    cut_positions = []
+    for token in cut_tokens:
+        pos = lower_name.find(token)
+        if pos != -1:
+            cut_positions.append(pos)
+    if year_match:
+        cut_positions.append(year_match.start())
+
+    if cut_positions:
+        name = name[:min(cut_positions)].strip(" -_.")
+
+    if not name:
+        name = raw_name.strip()
+
+    if year:
+        return f"{name} ({year})"
+    return name
 
 def _format_eta(progress: float, time_active: int, eta_seconds: int) -> str:
     # qBittorrent ETA can be noisy at startup. Hold until either threshold is reached.
@@ -68,7 +104,7 @@ def make_embed(active_torrents: List[Dict], completed_torrents: List[Dict], opti
     if active_torrents:
         bar_length = 20
         for t in active_torrents[:25]:
-            name = t["name"]
+            name = _format_title(t["name"])
             progress = t["progress"] * 100
             filled = int(progress / 100 * bar_length)
             bar = "█" * filled + "░" * (bar_length - filled)
@@ -99,7 +135,7 @@ def make_embed(active_torrents: List[Dict], completed_torrents: List[Dict], opti
     if completed_torrents:
         completed_list = []
         for t in completed_torrents:
-            name = t["name"]
+            name = _format_title(t["name"])
             completion_time = datetime.datetime.fromtimestamp(t["completion_on"])
             bar = "█" * 20
             completed_list.append(
