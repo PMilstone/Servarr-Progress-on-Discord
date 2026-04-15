@@ -22,14 +22,13 @@ class QBClient:
         items = r.json()
         torrents = []
         for t in items:
-            tags = t.get("tags", "")
-            if "tv-arr" in tags or "movies-arr" in tags:
+            progress = t.get("progress", 0.0)
+            if progress >= 0.9999:
                 torrents.append({
                     "name": t.get("name", "unknown"),
-                    "progress": t.get("progress", 0.0),
-                    "dlspeed": t.get("dlspeed", 0),
-                    "ulspeed": t.get("upspeed", 0),
-                    "size": t.get("size", 0),
+                    "completion_on": t.get("completion_on", 0),
+                    "size": t.get("size", 0)
+                })
                     "state": t.get("state", "")
                 })
         return torrents

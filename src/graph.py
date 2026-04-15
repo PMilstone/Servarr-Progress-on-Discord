@@ -55,7 +55,10 @@ def make_embed(active_torrents: List[Dict], completed_torrents: List[Dict]) -> D
         for t in completed_torrents:
             name = t["name"]
             completion_time = datetime.datetime.fromtimestamp(t["completion_on"])
-            completed_list.append(f"✅ {name} - {completion_time.strftime('%Y-%m-%d %H:%M')}")
+            bar = "█" * 20
+            completed_list.append(
+                f"✅ {name} - {completion_time.strftime('%Y-%m-%d %H:%M')}\n{bar} 100.0%"
+            )
         
         if completed_list:
             fields.append({
