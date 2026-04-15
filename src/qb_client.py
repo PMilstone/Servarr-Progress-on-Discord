@@ -20,15 +20,28 @@ class QBClient:
         r = self.session.get(url)
         r.raise_for_status()
         items = r.json()
+        download_states = {
+            "downloading",
+            "stalledDL",
+            "metaDL",
+            "forcedDL",
+            "checkingDL",
+            "queuedDL",
+        }
         torrents = []
         for t in items:
+            progress = t.get("progress", 0.0)
+            state = t.get("state", "")
+            if progress >= 0.9999 or state not in download_states:
+                continue
+
             torrents.append({
                 "name": t.get("name", "unknown"),
-                "progress": t.get("progress", 0.0),
+                "progress": progress,
                 "dlspeed": t.get("dlspeed", 0),
                 "ulspeed": t.get("upspeed", 0),
                 "size": t.get("size", 0),
-                "state": t.get("state", "")
+                "state": state
             })
         return torrents
 
