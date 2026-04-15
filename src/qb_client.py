@@ -15,6 +15,11 @@ class QBClient:
         r = self.session.post(url, data={"username": self.username or "", "password": self.password or ""})
         return r.status_code == 200 and r.text != "Fails."
 
+    @staticmethod
+    def _has_allowed_tag(raw_tags: str) -> bool:
+        tags = {tag.strip().lower() for tag in (raw_tags or "").split(",") if tag.strip()}
+        return "tv-arr" in tags or "movies-arr" in tags
+
     def get_active_torrents(self) -> List[Dict]:
         url = f"{self.base_url}/api/v2/torrents/info?filter=active"
         r = self.session.get(url)
@@ -30,6 +35,9 @@ class QBClient:
         }
         torrents = []
         for t in items:
+            if not self._has_allowed_tag(t.get("tags", "")):
+                continue
+
             progress = t.get("progress", 0.0)
             state = t.get("state", "")
             if progress >= 0.9999 or state not in download_states:
@@ -55,6 +63,9 @@ class QBClient:
         items = r.json()
         torrents = []
         for t in items:
+            if not self._has_allowed_tag(t.get("tags", "")):
+                continue
+
             progress = t.get("progress", 0.0)
             if progress >= 0.9999:
                 torrents.append({
