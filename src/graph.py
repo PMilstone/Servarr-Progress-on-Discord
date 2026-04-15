@@ -2,6 +2,10 @@ from typing import List, Dict
 import datetime
 import re
 
+def _format_datetime_12h(dt: datetime.datetime) -> str:
+    hour = dt.hour % 12 or 12
+    return f"{dt.strftime('%Y-%m-%d')} {hour}:{dt.strftime('%M %p')}"
+
 def _human_speed(bps: int) -> str:
     if bps >= 1_000_000:
         return f"{bps/1_000_000:.2f} MB/s"
@@ -26,14 +30,18 @@ def _human_duration(seconds: int) -> str:
 def _human_timestamp(ts: int) -> str:
     if not ts or ts <= 0:
         return "Unknown"
-    return datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d %I:%M %p')
+    return _format_datetime_12h(datetime.datetime.fromtimestamp(ts))
+
+def _extract_year(text: str) -> str:
+    # Capture release years but avoid years that are part of full dates like 2026-04-15.
+    match = re.search(r"\b(19\d{2}|20\d{2})(?!-\d{2}-\d{2})\b", text)
+    return match.group(1) if match else ""
 
 def _format_title(raw_name: str) -> str:
     # Remove leading uploader/group tags like [YTS], [RARBG], etc.
     raw_name = re.sub(r"^\s*(\[[^\]]+\]\s*)+", "", raw_name)
-    # Preserve trailing bracketed year (e.g. [2009]) before dropping other bracket metadata.
-    trailing_year_match = re.search(r"\[(19\d{2}|20\d{2})\]\s*$", raw_name)
-    trailing_year = trailing_year_match.group(1) if trailing_year_match else ""
+    # Preserve any valid year before dropping trailing bracket metadata.
+    preserved_year = _extract_year(raw_name)
     # Remove trailing bracket metadata blocks, including dangling/incomplete brackets.
     raw_name = re.sub(r"\s*(\[[^\]]*\]\s*)+$", "", raw_name)
     raw_name = re.sub(r"\s*\[[^\]]*$", "", raw_name)
@@ -44,8 +52,7 @@ def _format_title(raw_name: str) -> str:
     name = re.sub(r"\s+", " ", name).strip()
 
     # Find year in a sensible range.
-    year_match = re.search(r"\b(19\d{2}|20\d{2})\b", name)
-    year = year_match.group(1) if year_match else trailing_year
+    year = _extract_year(name) or preserved_year
 
     # Trim common release metadata after the title.
     cut_tokens = [
@@ -59,6 +66,7 @@ def _format_title(raw_name: str) -> str:
         pos = lower_name.find(token)
         if pos != -1:
             cut_positions.append(pos)
+    year_match = re.search(rf"\b{re.escape(year)}\b", name) if year else None
     if year_match:
         cut_positions.append(year_match.start())
 
@@ -146,9 +154,8 @@ def make_embed(active_torrents: List[Dict], completed_torrents: List[Dict], opti
         for t in completed_torrents:
             name = _format_title(t["name"])
             completion_time = datetime.datetime.fromtimestamp(t["completion_on"])
-            bar = "█" * 20
             completed_list.append(
-                f"✅ {name} - {completion_time.strftime('%Y-%m-%d %I:%M %p')}\n{bar} 100.0%"
+                f"✅ {name} - {_format_datetime_12h(completion_time)}"
             )
         
         if completed_list:
