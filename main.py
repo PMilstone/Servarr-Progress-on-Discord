@@ -33,8 +33,8 @@ def webhook():
         return jsonify({"status": "ignored", "reason": "no json payload"}), 200
 
     event_type = data.get("eventType")
-    # Trigger on Grab (download started) or Download (completed)
-    if event_type not in ["Grab", "Download"]:
+    # Trigger on Grab (download started), Download (completed), or Import (file imported)
+    if event_type not in ["Grab", "Download", "Import"]:
         return jsonify({"status": "ignored", "event": event_type}), 200
 
     # Check for torrents
