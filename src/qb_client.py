@@ -1,5 +1,43 @@
 import requests
-from typing import List, Dict
+import time
+from typing import List, Dict, Callable, Any
+from functools import wraps
+
+# Constants
+DEFAULT_TIMEOUT = 30  # seconds
+PROGRESS_COMPLETION_THRESHOLD = 0.9999  # Consider >= 99.99% as complete
+DOWNLOAD_STATES = {
+    "downloading",
+    "stalledDL",
+    "metaDL",
+    "forcedDL",
+    "checkingDL",
+    "queuedDL",
+}
+
+def retry_with_backoff(max_attempts: int = 3, initial_delay: float = 1.0, backoff_factor: float = 2.0):
+    """Decorator to retry a function with exponential backoff."""
+    def decorator(func: Callable) -> Callable:
+        @wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            delay = initial_delay
+            last_exception = None
+            
+            for attempt in range(max_attempts):
+                try:
+                    return func(*args, **kwargs)
+                except (requests.exceptions.RequestException, requests.exceptions.Timeout) as e:
+                    last_exception = e
+                    if attempt < max_attempts - 1:
+                        print(f"Attempt {attempt + 1} failed: {e}. Retrying in {delay}s...")
+                        time.sleep(delay)
+                        delay *= backoff_factor
+                    else:
+                        print(f"All {max_attempts} attempts failed.")
+            
+            raise last_exception
+        return wrapper
+    return decorator
 
 class QBClient:
     def __init__(self, base_url: str = "http://127.0.0.1:8080", username: str | None = None, password: str | None = None):
@@ -8,11 +46,25 @@ class QBClient:
         self.password = password
         self.session = requests.Session()
 
+    def __enter__(self):
+        """Context manager entry."""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit - close session."""
+        self.close()
+        return False
+
+    def close(self):
+        """Explicitly close the session."""
+        if self.session:
+            self.session.close()
+
     def login(self) -> bool:
         if not self.username and not self.password:
             return True
         url = f"{self.base_url}/api/v2/auth/login"
-        r = self.session.post(url, data={"username": self.username or "", "password": self.password or ""})
+        r = self.session.post(url, data={"username": self.username or "", "password": self.password or ""}, timeout=DEFAULT_TIMEOUT)
         return r.status_code == 200 and r.text != "Fails."
 
     @staticmethod
@@ -20,19 +72,12 @@ class QBClient:
         category_text = (raw_category or "").lower()
         return "tv-arr" in category_text or "movies-arr" in category_text
 
+    @retry_with_backoff(max_attempts=3, initial_delay=1.0, backoff_factor=2.0)
     def get_active_torrents(self) -> List[Dict]:
         url = f"{self.base_url}/api/v2/torrents/info?filter=active"
-        r = self.session.get(url)
+        r = self.session.get(url, timeout=DEFAULT_TIMEOUT)
         r.raise_for_status()
         items = r.json()
-        download_states = {
-            "downloading",
-            "stalledDL",
-            "metaDL",
-            "forcedDL",
-            "checkingDL",
-            "queuedDL",
-        }
         torrents = []
         for t in items:
             if not self._has_allowed_category(t.get("category", "")):
@@ -40,7 +85,7 @@ class QBClient:
 
             progress = t.get("progress", 0.0)
             state = t.get("state", "")
-            if progress >= 0.9999 or state not in download_states:
+            if progress >= PROGRESS_COMPLETION_THRESHOLD or state not in DOWNLOAD_STATES:
                 continue
 
             torrents.append({
@@ -56,9 +101,10 @@ class QBClient:
             })
         return torrents
 
+    @retry_with_backoff(max_attempts=3, initial_delay=1.0, backoff_factor=2.0)
     def get_recent_completed_torrents(self, limit: int = 5) -> List[Dict]:
         url = f"{self.base_url}/api/v2/torrents/info?filter=all"
-        r = self.session.get(url)
+        r = self.session.get(url, timeout=DEFAULT_TIMEOUT)
         r.raise_for_status()
         items = r.json()
         torrents = []
@@ -67,7 +113,7 @@ class QBClient:
                 continue
 
             progress = t.get("progress", 0.0)
-            if progress >= 0.9999:
+            if progress >= PROGRESS_COMPLETION_THRESHOLD:
                 torrents.append({
                     "name": t.get("name", "unknown"),
                     "completion_on": t.get("completion_on", 0),

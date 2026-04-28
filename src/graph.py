@@ -2,6 +2,13 @@ from typing import List, Dict
 import datetime
 import re
 
+# Constants
+PROGRESS_BAR_LENGTH = 12
+MAX_ACTIVE_TORRENTS_DISPLAY = 25
+MAX_TITLE_LENGTH = 256
+ETA_MIN_PROGRESS_THRESHOLD = 0.10  # 10% - Hold ETA display until this progress
+ETA_MIN_TIME_ACTIVE = 60  # seconds - Hold ETA display until this much time has passed
+
 def _format_datetime_12h(dt: datetime.datetime) -> str:
     hour = dt.hour % 12 or 12
     return f"{dt.strftime('%Y-%m-%d')} {hour}:{dt.strftime('%M %p')}"
@@ -82,11 +89,11 @@ def _format_title(raw_name: str) -> str:
 
 def _format_eta(progress: float, time_active: int, eta_seconds: int) -> str:
     # qBittorrent ETA can be noisy at startup. Hold until either threshold is reached.
-    if progress < 0.10 and time_active < 60:
+    if progress < ETA_MIN_PROGRESS_THRESHOLD and time_active < ETA_MIN_TIME_ACTIVE:
         return "Calculating..."
     return _human_duration(eta_seconds)
 
-def _rainbow_progress_bar(progress_ratio: float, length: int = 12) -> str:
+def _rainbow_progress_bar(progress_ratio: float, length: int = PROGRESS_BAR_LENGTH) -> str:
     colors = ["🟦", "🟦", "🟩", "🟩", "🟨", "🟨", "🟧", "🟧", "🟥", "🟥", "🟪", "🟪"]
     safe_ratio = max(0.0, min(1.0, progress_ratio))
     filled = int(safe_ratio * length)
@@ -126,12 +133,11 @@ def make_embed(active_torrents: List[Dict], completed_torrents: List[Dict], opti
     
     # Active torrents section
     if active_torrents:
-        bar_length = 12
-        for t in active_torrents[:25]:
+        for t in active_torrents[:MAX_ACTIVE_TORRENTS_DISPLAY]:
             name = _format_title(t["name"])
             progress_ratio = t["progress"]
             progress = progress_ratio * 100
-            bar = _rainbow_progress_bar(progress_ratio, bar_length)
+            bar = _rainbow_progress_bar(progress_ratio, PROGRESS_BAR_LENGTH)
             details = []
             if show_download_speed:
                 details.append(f"↓ {_human_speed(t.get('dlspeed', 0))}")
@@ -150,7 +156,7 @@ def make_embed(active_torrents: List[Dict], completed_torrents: List[Dict], opti
             if details:
                 value = value + "\n" + " | ".join(details)
             fields.append({
-                "name": name[:256],
+                "name": name[:MAX_TITLE_LENGTH],
                 "value": value,
                 "inline": False,
             })
