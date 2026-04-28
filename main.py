@@ -54,6 +54,17 @@ def run_status_update(cfg: dict) -> bool:
     send_embed(cfg["WEBHOOK_URL"], embed, cfg.get("MESSAGE"), cfg.get("MESSAGE_ID"))
     return len(active_torrents) > 0
 
+def _extract_item_title(payload: dict) -> str:
+    if isinstance(payload.get("series"), dict) and payload["series"].get("title"):
+        return str(payload["series"]["title"])
+    if isinstance(payload.get("movie"), dict) and payload["movie"].get("title"):
+        return str(payload["movie"]["title"])
+    if isinstance(payload.get("release"), dict) and payload["release"].get("releaseTitle"):
+        return str(payload["release"]["releaseTitle"])
+    if payload.get("title"):
+        return str(payload["title"])
+    return "Unknown item"
+
 def _monitor_active_downloads() -> None:
     while True:
         cfg = load_config()
@@ -93,16 +104,20 @@ def webhook():
     if not data:
         return jsonify({"status": "ignored", "reason": "no json payload"}), 200
 
-    event_type = data.get("eventType")
-    # Trigger on Grab (download started), Download (completed), or Import (file imported)
-    if event_type not in ["Grab", "Download", "Import"]:
+    event_type = (data.get("eventType") or data.get("eventtype") or "").strip()
+    item_title = _extract_item_title(data)
+    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Webhook received: event={event_type or 'unknown'} item={item_title}")
+
+    # Handle any Sonarr/Radarr webhook request so new requests are not missed.
+    # Keep a tiny ignore list for obvious non-event probes.
+    if event_type.lower() in {"ping", "healthcheck"}:
         return jsonify({"status": "ignored", "event": event_type}), 200
 
     try:
         has_active = run_status_update(cfg)
         if has_active:
             ensure_active_monitor_running()
-        return jsonify({"status": "updated", "active": has_active}), 200
+        return jsonify({"status": "updated", "active": has_active, "event": event_type or "unknown"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
