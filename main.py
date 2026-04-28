@@ -1,3 +1,9 @@
+"""
+qBittorrent Discord Webhook Service
+Version: 1.1.0
+Build: 2026-04-28 12:17 EST
+"""
+
 import os
 import threading
 import time
@@ -11,6 +17,10 @@ from dotenv import load_dotenv
 from src.qb_client import QBClient
 from src.graph import make_embed
 from src.discord_webhook import send_embed
+
+# Version Information
+VERSION = "1.1.0"
+BUILD_DATE = "2026-04-28 12:17 EST"
 
 # Configure logging
 logging.basicConfig(
@@ -209,6 +219,8 @@ def status():
     
     status_info = {
         "service": "qbitdiscord",
+        "version": VERSION,
+        "build_date": BUILD_DATE,
         "status": "running",
         "timestamp": datetime.datetime.now().isoformat(),
         "config": {
@@ -260,6 +272,14 @@ def webhook():
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
+    # Display version information
+    print("=" * 60)
+    print(f"qBittorrent Discord Webhook Service")
+    print(f"Version: {VERSION}")
+    print(f"Build: {BUILD_DATE}")
+    print("=" * 60)
+    logger.info(f"Starting service - Version {VERSION}, Build {BUILD_DATE}")
+    
     try:
         cfg = load_config()
     except ConfigError as e:
