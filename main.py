@@ -33,6 +33,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Suppress Flask development server warning
+logging.getLogger('werkzeug').setLevel(logging.ERROR)
+
 # Constants
 DEFAULT_PORT = 5000
 DEFAULT_UPDATE_INTERVAL = 15
