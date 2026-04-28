@@ -10,3 +10,7 @@ build/
 dist/
 *.egg-info/
 pytest_cache/
+
+# Application files
+*.log
+message_id.json
