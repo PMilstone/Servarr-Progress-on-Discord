@@ -168,6 +168,7 @@ _active_monitor_lock = threading.Lock()
 _last_update_time = None
 _last_update_status = None
 _shutdown_flag = threading.Event()
+_use_test_data = False  # Global flag for test mode
 
 class ConfigError(Exception):
     """Raised when configuration is invalid."""
@@ -386,7 +387,7 @@ def _monitor_active_downloads() -> None:
             break
 
         try:
-            has_active = run_status_update(cfg)
+            has_active = run_status_update(cfg, use_test_data=_use_test_data)
         except Exception as e:
             msg = f"Active download monitor error: {e}"
             logger.error(msg)
@@ -468,7 +469,7 @@ def webhook():
         return jsonify({"status": "ignored", "event": event_type}), 200
 
     try:
-        has_active = run_status_update(cfg)
+        has_active = run_status_update(cfg, use_test_data=_use_test_data)
         if has_active:
             ensure_active_monitor_running()
         return jsonify({"status": "updated", "active": has_active, "event": event_type or "unknown"}), 200
@@ -489,6 +490,10 @@ if __name__ == "__main__":
         help='Run with mock Linux distro torrent data (no qBittorrent connection required)'
     )
     args = parser.parse_args()
+    
+    # Store test mode flag globally for monitoring thread
+    global _use_test_data
+    _use_test_data = args.test
     
     # Register signal handlers for graceful shutdown
     signal.signal(signal.SIGINT, signal_handler)
