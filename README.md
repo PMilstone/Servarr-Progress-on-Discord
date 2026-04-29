@@ -34,10 +34,11 @@ python -m venv .venv
 # Install dependencies
 pip install -r requirements.txt
 
-# Copy and configure environment file
-copy .env.example .env
-notepad .env
+# Run setup wizard
+.\setup.bat
 ```
+
+### Linux/Mac Bash
 
 ### Linux/macOS
 ```bash
@@ -50,13 +51,33 @@ source .venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
-
-# Copy and configure environment file
-cp .env.example .env
-nano .env
-```
+# Run setup wizard
+./setup.sh```
 
 ## Configuration
+
+### Option 1: Setup Wizard (Recommended)
+
+Run the interactive setup wizard to create your `.env` file:
+
+**Windows:**
+```bash
+setup.bat
+```
+
+**Linux/Mac:**
+```bash
+chmod +x setup.sh
+./setup.sh
+```
+
+The wizard will:
+- Guide you through all configuration options
+- Validate your inputs
+- Show a preview of your Discord embed settings
+- Create a ready-to-use `.env` file
+
+### Option 2: Manual Configuration
 
 Create a `.env` file with the following settings:
 
@@ -220,6 +241,9 @@ The application creates rotating log files:
 ```
 QbitDiscord/
 ├── main.py                    # Flask webhook server and orchestration
+├── setup.py                   # Interactive setup wizard
+├── setup.bat                  # Setup wizard launcher (Windows)
+├── setup.sh                   # Setup wizard launcher (Linux/Mac)
 ├── requirements.txt           # Python dependencies
 ├── .env.example              # Configuration template
 ├── .gitignore                # Git ignore rules
