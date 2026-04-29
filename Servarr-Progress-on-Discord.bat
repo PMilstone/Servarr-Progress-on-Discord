@@ -1,9 +1,9 @@
 @echo off
-REM Setup wizard for qBittorrent Discord Webhook Service (Windows)
+REM Launcher for qBittorrent Discord Webhook Service (Windows)
 
 echo.
 echo ================================================================
-echo qBittorrent Discord Webhook Service - Setup Wizard
+echo qBittorrent Discord Webhook Service
 echo ================================================================
 echo.
 
@@ -44,9 +44,15 @@ if errorlevel 1 (
     echo.
 )
 
-REM Run setup script with virtual environment
-echo Starting setup wizard...
-echo.
-.venv\Scripts\python.exe setup.py
+REM Check if .env file exists
+if exist ".env" (
+    echo Configuration found. Starting service...
+    echo.
+    .venv\Scripts\python.exe main.py
+) else (
+    echo Configuration not found. Starting setup wizard...
+    echo.
+    .venv\Scripts\python.exe setup.py
+)
 
 pause

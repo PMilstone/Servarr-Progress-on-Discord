@@ -28,8 +28,8 @@ A production-ready webhook server that displays qBittorrent download progress in
 # Clone or download the repository
 cd path\to\QbitDiscord
 
-# Run setup wizard (automatically creates venv and installs dependencies)
-.\setup.bat
+# Run launcher (automatically creates venv, installs dependencies, and starts setup or service)
+.\Servarr-Progress-on-Discord.bat
 ```
 
 ### Linux/Mac Bash
@@ -37,31 +37,32 @@ cd path\to\QbitDiscord
 # Clone or download the repository
 cd path/to/QbitDiscord
 
-# Run setup wizard (automatically creates venv and installs dependencies)
-./setup.sh
+# Run launcher (automatically creates venv, installs dependencies, and starts setup or service)
+chmod +x Servarr-Progress-on-Discord.sh
+./Servarr-Progress-on-Discord.sh
 ```
 
-**Note:** The setup wizard automatically:
+**Note:** The launcher automatically:
 - Creates a Python virtual environment (`.venv`)
 - Installs all required dependencies from `requirements.txt`
-- Guides you through configuration
-- Creates your `.env` file
+- Runs setup wizard if no `.env` file exists
+- Starts the service if `.env` file exists
 
 ## Configuration
 
 ### Option 1: Setup Wizard (Recommended)
 
-Run the interactive setup wizard to create your `.env` file:
+Run the unified launcher - it will automatically start the setup wizard if no `.env` file exists:
 
 **Windows:**
 ```bash
-setup.bat
+Servarr-Progress-on-Discord.bat
 ```
 
 **Linux/Mac:**
 ```bash
-chmod +x setup.sh
-./setup.sh
+chmod +x Servarr-Progress-on-Discord.sh
+./Servarr-Progress-on-Discord.sh
 ```
 
 The wizard will:
@@ -72,6 +73,7 @@ The wizard will:
 - Let you customize the embed display settings
 - **Update the test message in real-time** with your customizations
 - Automatically capture the message ID for editing
+- **Automatically create webhooks in Sonarr/Radarr** if you provide API keys
 - Create a ready-to-use `.env` file
 
 The test message sent during setup will be the one edited by the service - no spam!
@@ -97,6 +99,12 @@ LOG_MAX_SIZE=10485760              # Max log file size in bytes (default 10MB)
 QB_URL=http://127.0.0.1:8080      # qBittorrent Web UI URL
 QB_USER=                           # Leave empty if no authentication
 QB_PASS=                           # Leave empty if no authentication
+
+# Sonarr/Radarr integration (optional - for automatic webhook creation)
+SONARR_URL=http://127.0.0.1:8989  # Sonarr URL
+SONARR_API_KEY=                    # Sonarr API key
+RADARR_URL=http://127.0.0.1:7878  # Radarr URL
+RADARR_API_KEY=                    # Radarr API key
 
 # Filtering (optional)
 QB_CATEGORIES=                     # Comma-separated: tv-arr,movies-arr
@@ -170,7 +178,19 @@ curl http://localhost:5000/status
 
 ## Sonarr/Radarr Integration
 
-### Setup Steps
+### Automatic Webhook Setup (Recommended)
+The setup wizard can automatically create webhooks in Sonarr and Radarr for you! Just provide:
+- Sonarr/Radarr URL (e.g., `http://127.0.0.1:8989` for Sonarr, `http://127.0.0.1:7878` for Radarr)
+- API Key (found in Settings → General → Security → API Key)
+
+The wizard will:
+- Create a webhook connection named "qBittorrent Discord Status"
+- Configure triggers: On Grab, On Import Complete (Sonarr) / On Download (Radarr)
+- Set the webhook URL to your server automatically
+
+### Manual Webhook Setup
+If you prefer manual setup or automatic creation fails:
+
 1. In Sonarr/Radarr, navigate to **Settings → Connect**
 2. Click the **+** button and select **Webhook**
 3. Configure the webhook:
@@ -181,6 +201,12 @@ curl http://localhost:5000/status
    - **On Download**: ✓ (recommended - triggers when download completes)
 4. Click **Test** to verify connectivity
 5. Save the connection
+
+### Getting Your API Key
+1. Open Sonarr or Radarr web interface
+2. Go to **Settings → General**
+3. Scroll to **Security** section
+4. Copy the **API Key**
 
 ### Manual Testing
 ```powershell
@@ -239,20 +265,19 @@ The application creates rotating log files:
 
 ```
 QbitDiscord/
-├── main.py                    # Flask webhook server and orchestration
-├── setup.py                   # Interactive setup wizard
-├── setup.bat                  # Setup wizard launcher (Windows)
-├── setup.sh                   # Setup wizard launcher (Linux/Mac)
-├── requirements.txt           # Python dependencies
-├── .env.example              # Configuration template
-├── .gitignore                # Git ignore rules
-├── LICENSE                   # The Unlicense (public domain)
-├── README.md                 # This file
-├── src/
-│   ├── qb_client.py          # qBittorrent API client
-│   ├── discord_webhook.py    # Discord webhook sender
-│   └── graph.py              # Embed generation and formatting
-└── test_graph.py             # Test harness for embed generation
+├── main.py                                # Flask webhook server and orchestration
+├── setup.py                               # Interactive setup wizard
+├── Servarr-Progress-on-Discord.bat        # Unified launcher (Windows)
+├── Servarr-Progress-on-Discord.sh         # Unified launcher (Linux/Mac)
+├── requirements.txt                       # Python dependencies
+├── .env.example                          # Configuration template
+├── .gitignore                            # Git ignore rules
+├── LICENSE                               # The Unlicense (public domain)
+├── README.md                             # This file
+└── src/
+    ├── qb_client.py          # qBittorrent API client
+    ├── discord_webhook.py    # Discord webhook sender
+    └── graph.py              # Embed generation and formatting
 ```
 
 ## Advanced Features
@@ -286,17 +311,12 @@ The application handles `CTRL+C` gracefully:
 
 ### Testing
 
-**Standalone test:**
+**Test with mock data:**
 ```bash
-python test_graph.py          # Test embed generation with mock data
+python main.py --test         # Run server with mock torrents and send to Discord
 ```
 
-**Live test with Discord:**
-```bash
-python main.py --test         # Run server with mock torrents
-```
-
-The `--test` flag allows you to test the complete flow (server + Discord webhook) without needing qBittorrent installed.
+The `--test` flag allows you to test the complete flow (server + Discord webhook + embed generation) without needing qBittorrent installed.
 
 ### Version Information
 Current version: **1.2.0**  

@@ -1,9 +1,9 @@
 #!/bin/bash
-# Setup wizard for qBittorrent Discord Webhook Service (Linux/Mac)
+# Launcher for qBittorrent Discord Webhook Service (Linux/Mac)
 
 echo ""
 echo "================================================================"
-echo "qBittorrent Discord Webhook Service - Setup Wizard"
+echo "qBittorrent Discord Webhook Service"
 echo "================================================================"
 echo ""
 
@@ -40,7 +40,13 @@ if [ $? -ne 0 ]; then
     echo ""
 fi
 
-# Run setup script with virtual environment
-echo "Starting setup wizard..."
-echo ""
-.venv/bin/python setup.py
+# Check if .env file exists
+if [ -f ".env" ]; then
+    echo "Configuration found. Starting service..."
+    echo ""
+    .venv/bin/python main.py
+else
+    echo "Configuration not found. Starting setup wizard..."
+    echo ""
+    .venv/bin/python setup.py
+fi

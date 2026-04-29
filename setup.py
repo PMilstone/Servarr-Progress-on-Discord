@@ -10,6 +10,7 @@ from pathlib import Path
 from src.graph import make_embed
 from src.discord_webhook import send_embed
 import json
+import requests
 
 # ANSI color codes for cross-platform colored output
 class Colors:
@@ -90,6 +91,83 @@ def validate_url(url, url_type="URL"):
         return False
     
     return True
+
+def create_arr_webhook(app_name, base_url, api_key, webhook_server_url):
+    """
+    Create a webhook in Sonarr or Radarr using their API.
+    
+    Args:
+        app_name: "Sonarr" or "Radarr"
+        base_url: Base URL of the Sonarr/Radarr instance
+        api_key: API key for authentication
+        webhook_server_url: URL of our webhook server (e.g., http://localhost:5000/webhook)
+    
+    Returns:
+        True if successful, False otherwise
+    """
+    if not base_url or not api_key:
+        return False
+    
+    # Construct API endpoint
+    api_url = f"{base_url.rstrip('/')}/api/v3/notification"
+    
+    # Webhook configuration
+    # Sonarr uses "onImportComplete" and "onManualInteractionRequired"
+    # Radarr uses "onDownload" and "onManualInteractionRequired"
+    is_sonarr = app_name.lower() == "sonarr"
+    
+    webhook_config = {
+        "name": "qBittorrent Discord Status",
+        "implementation": "Webhook",
+        "configContract": "WebhookSettings",
+        "fields": [
+            {"name": "url", "value": webhook_server_url},
+            {"name": "method", "value": 1}  # 1 = POST
+        ],
+        "tags": [],
+        "onGrab": True,
+        "onHealthIssue": False,
+        "onApplicationUpdate": False,
+        "includeHealthWarnings": False
+    }
+    
+    # Add app-specific triggers
+    if is_sonarr:
+        webhook_config["onImportComplete"] = True
+        webhook_config["onSeriesDelete"] = False
+        webhook_config["onEpisodeFileDelete"] = False
+    else:  # Radarr
+        webhook_config["onDownload"] = True
+        webhook_config["onMovieDelete"] = False
+        webhook_config["onMovieFileDelete"] = False
+    
+    try:
+        response = requests.post(
+            api_url,
+            headers={
+                "X-Api-Key": api_key,
+                "Content-Type": "application/json"
+            },
+            json=webhook_config,
+            timeout=10
+        )
+        
+        if response.status_code == 201:
+            return True
+        elif response.status_code == 400:
+            # Check if webhook already exists
+            error_msg = response.text.lower()
+            if "already exists" in error_msg or "duplicate" in error_msg:
+                print_warning(f"{app_name} webhook may already exist")
+                return True
+            return False
+        else:
+            print_error(f"{app_name} API returned status {response.status_code}")
+            return False
+            
+    except requests.exceptions.RequestException as e:
+        print_error(f"Failed to connect to {app_name}: {str(e)}")
+        return False
 
 def get_embed_settings():
     """Prompt for all embed display settings."""
@@ -258,7 +336,9 @@ def main():
     print_header("Step 2: Server Configuration")
     config["PORT"] = prompt_input("Server port", default="5000", required=False)
     config["ACTIVE_UPDATE_INTERVAL"] = prompt_input("Update interval in seconds (while downloads active)", default="15", required=False)
-    config["LOG_MAX_SIZE"] = prompt_input("Maximum log file size in bytes", default="10485760", required=False)
+    log_mb = prompt_input("Maximum log file size in MB", default="10", required=False)
+    # Convert MB to bytes for storage in .env
+    config["LOG_MAX_SIZE"] = str(int(float(log_mb) * 1048576))
     
     # qBittorrent Configuration
     print_header("Step 3: qBittorrent Configuration")
@@ -274,6 +354,25 @@ def main():
     print("Leave blank if authentication is not required.\n")
     config["QB_USER"] = prompt_input("qBittorrent username", required=False)
     config["QB_PASS"] = prompt_input("qBittorrent password", required=False)
+    
+    # Sonarr/Radarr Configuration (optional)
+    print_header("Step 3.5: Sonarr/Radarr Configuration (Optional)")
+    print("Configure Sonarr and/or Radarr to enable automatic webhook creation.")
+    print("Leave blank to skip and manually configure webhooks later.\n")
+    
+    print("Sonarr Configuration:")
+    config["SONARR_URL"] = prompt_input("Sonarr URL", default="http://127.0.0.1:8989", required=False)
+    if config["SONARR_URL"]:
+        config["SONARR_API_KEY"] = prompt_input("Sonarr API Key", required=False)
+    else:
+        config["SONARR_API_KEY"] = ""
+    
+    print("\nRadarr Configuration:")
+    config["RADARR_URL"] = prompt_input("Radarr URL", default="http://127.0.0.1:7878", required=False)
+    if config["RADARR_URL"]:
+        config["RADARR_API_KEY"] = prompt_input("Radarr API Key", required=False)
+    else:
+        config["RADARR_API_KEY"] = ""
     
     # Send initial test message with default settings to verify webhook
     print_header("Step 4: Discord Webhook Test")
@@ -419,7 +518,7 @@ def main():
         f.write("# Poll interval in seconds while active downloads exist\n")
         f.write(f"ACTIVE_UPDATE_INTERVAL={config['ACTIVE_UPDATE_INTERVAL']}\n\n")
         
-        f.write("# Maximum log file size in bytes before rotation (default 10485760 = 10MB)\n")
+        f.write("# Maximum log file size in bytes before rotation\n")
         f.write(f"LOG_MAX_SIZE={config['LOG_MAX_SIZE']}\n\n")
         
         f.write("# qBittorrent web UI base URL\n")
@@ -428,6 +527,16 @@ def main():
         f.write("# qBittorrent credentials (leave blank if not required)\n")
         f.write(f"QB_USER={config['QB_USER']}\n")
         f.write(f"QB_PASS={config['QB_PASS']}\n\n")
+        
+        if config['SONARR_URL']:
+            f.write("# Sonarr configuration (optional)\n")
+            f.write(f"SONARR_URL={config['SONARR_URL']}\n")
+            f.write(f"SONARR_API_KEY={config['SONARR_API_KEY']}\n\n")
+        
+        if config['RADARR_URL']:
+            f.write("# Radarr configuration (optional)\n")
+            f.write(f"RADARR_URL={config['RADARR_URL']}\n")
+            f.write(f"RADARR_API_KEY={config['RADARR_API_KEY']}\n\n")
         
         if config['MESSAGE']:
             f.write("# Optional message content to send with each embed\n")
@@ -449,6 +558,35 @@ def main():
             f.write(f"QB_CATEGORIES={config['QB_CATEGORIES']}\n")
     
     print_success(f"Configuration saved to {env_path.absolute()}")
+    
+    # Automatically create webhooks in Sonarr/Radarr if configured
+    if config.get('SONARR_URL') and config.get('SONARR_API_KEY'):
+        print_header("Creating Sonarr Webhook")
+        webhook_url = f"http://127.0.0.1:{config['PORT']}/webhook"
+        print(f"Attempting to create webhook in Sonarr: {webhook_url}\n")
+        
+        if create_arr_webhook("Sonarr", config['SONARR_URL'], config['SONARR_API_KEY'], webhook_url):
+            print_success("Sonarr webhook created successfully!")
+            print(f"  Triggers: On Grab, On Import Complete\n")
+        else:
+            print_warning("Could not automatically create Sonarr webhook.")
+            print(f"  You can manually create it in Sonarr:")
+            print(f"  Settings → Connect → Add Webhook")
+            print(f"  URL: {webhook_url}\n")
+    
+    if config.get('RADARR_URL') and config.get('RADARR_API_KEY'):
+        print_header("Creating Radarr Webhook")
+        webhook_url = f"http://127.0.0.1:{config['PORT']}/webhook"
+        print(f"Attempting to create webhook in Radarr: {webhook_url}\n")
+        
+        if create_arr_webhook("Radarr", config['RADARR_URL'], config['RADARR_API_KEY'], webhook_url):
+            print_success("Radarr webhook created successfully!")
+            print(f"  Triggers: On Grab, On Download\n")
+        else:
+            print_warning("Could not automatically create Radarr webhook.")
+            print(f"  You can manually create it in Radarr:")
+            print(f"  Settings → Connect → Add Webhook")
+            print(f"  URL: {webhook_url}\n")
     
     print_header("Setup Complete!")
     
