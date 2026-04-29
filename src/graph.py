@@ -100,7 +100,7 @@ def _rainbow_progress_bar(progress_ratio: float, length: int = PROGRESS_BAR_LENG
     bar = "".join(colors[i % len(colors)] for i in range(filled))
     return bar + ("⬜" * (length - filled))
 
-def make_embed(active_torrents: List[Dict], completed_torrents: List[Dict], options: Dict[str, bool] | None = None) -> Dict[str, object]:
+def make_embed(active_torrents: List[Dict], completed_torrents: List[Dict], options: Dict[str, bool] | None = None, is_test_mode: bool = False) -> Dict[str, object]:
     options = options or {}
     show_download_speed = options.get("show_download_speed", True)
     show_upload_speed = options.get("show_upload_speed", True)
@@ -171,8 +171,9 @@ def make_embed(active_torrents: List[Dict], completed_torrents: List[Dict], opti
         "inline": False
     })
 
+    title = "TEST - Download Progress" if is_test_mode else "Download Progress"
     return {
-        "title": "Download Progress",
+        "title": title,
         "description": "",
         "color": 3447003,
         "fields": fields,

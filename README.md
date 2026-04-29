@@ -127,7 +127,7 @@ This is useful for:
 - Previewing the embed format and colors
 - Development and debugging
 
-The test mode uses mock data with Ubuntu, Debian, Fedora, Arch Linux, and Linux Mint torrents.
+The test mode uses mock data with Ubuntu, Debian, Fedora, Arch Linux, and Linux Mint torrents. The Discord embed header will display "TEST - Download Progress" to clearly indicate test mode.
 
 ### Command Line Options
 

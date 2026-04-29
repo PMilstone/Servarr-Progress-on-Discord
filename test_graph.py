@@ -87,5 +87,11 @@ if __name__ == "__main__":
     print(json.dumps(embed_minimal, indent=2))
     
     print("\n" + "=" * 60)
+    print("4. Testing TEST mode (is_test_mode=True):\n")
+    embed_test = make_embed(mock_active_torrents, mock_completed_torrents, embed_options, is_test_mode=True)
+    print(f"Title: {embed_test['title']}")
+    print("(Full embed structure same as test #1, showing title only)")
+    
+    print("\n" + "=" * 60)
     print("All tests completed successfully!")
 

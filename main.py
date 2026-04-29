@@ -345,7 +345,7 @@ def run_status_update(cfg: dict, use_test_data: bool = False) -> bool:
             "show_time_added": cfg.get("EMBED_SHOW_TIME_ADDED", True),
             "show_time_since_started": cfg.get("EMBED_SHOW_TIME_SINCE_STARTED", True),
         }
-        embed = make_embed(active_torrents, completed_torrents, embed_options)
+        embed = make_embed(active_torrents, completed_torrents, embed_options, is_test_mode=use_test_data)
         
         # Use persisted message ID if not in config
         message_id = cfg.get("MESSAGE_ID") or load_persisted_message_id()
