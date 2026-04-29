@@ -11,6 +11,7 @@ from src.graph import make_embed
 from src.discord_webhook import send_embed
 import json
 import requests
+import subprocess
 
 # ANSI color codes for cross-platform colored output
 class Colors:
@@ -594,10 +595,36 @@ def main():
         print_success("A test message was created in your Discord channel.")
         print(f"The service will automatically edit that message with live updates.\n")
     
-    print("You can now start the service with:")
-    print(f"  {Colors.BOLD}python main.py{Colors.END}\n")
-    print("Or test with mock data:")
-    print(f"  {Colors.BOLD}python main.py --test{Colors.END}\n")
+    print(f"{Colors.BOLD}Configuration is complete!{Colors.END}\n")
+    
+    # Ask if user wants to start the service now
+    if prompt_yes_no("Would you like to start the service now?", default=True):
+        print_header("Starting Service")
+        print(f"Launching {Colors.BOLD}main.py{Colors.END}...\n")
+        
+        try:
+            # Get the Python executable from the current environment
+            python_exe = sys.executable
+            script_path = Path(__file__).parent / "main.py"
+            
+            # Launch main.py in the same process
+            print(f"{Colors.GREEN}{'=' * 70}{Colors.END}")
+            print(f"{Colors.GREEN}Service is starting...{Colors.END}")
+            print(f"{Colors.GREEN}{'=' * 70}{Colors.END}\n")
+            
+            # Execute main.py
+            os.execv(python_exe, [python_exe, str(script_path)])
+            
+        except Exception as e:
+            print_error(f"Failed to start service: {e}")
+            print("\nYou can manually start the service with:")
+            print(f"  {Colors.BOLD}python main.py{Colors.END}\n")
+            sys.exit(1)
+    else:
+        print("\nYou can start the service later with:")
+        print(f"  {Colors.BOLD}python main.py{Colors.END}\n")
+        print("Or test with mock data:")
+        print(f"  {Colors.BOLD}python main.py --test{Colors.END}\n")
 
 if __name__ == "__main__":
     try:
