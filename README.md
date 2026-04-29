@@ -1,60 +1,251 @@
-# qBittorrent -> Discord Webhook Status
+# qBittorrent Discord Webhook
 
-A webhook server that receives events from Sonarr/Radarr and updates a Discord embed with active qBittorrent torrents and the most recent 5 completed downloads.
+A production-ready webhook server that displays qBittorrent download progress in Discord. Integrates seamlessly with Sonarr/Radarr to automatically update a Discord embed showing active downloads and recently completed torrents.
+
+## Features
+
+- **Live Progress Updates** - Real-time Discord embed with colorful progress bars for active downloads
+- **Smart Title Formatting** - Automatically cleans up torrent names and extracts release years
+- **Configurable Display** - Toggle download/upload speeds, ETA, timestamps, and activity duration
+- **Category Filtering** - Optionally filter torrents by qBittorrent categories
+- **Message Persistence** - Automatically edits the same Discord message instead of spamming
+- **Robust Error Handling** - Comprehensive retry logic with exponential backoff
+- **Production Ready** - Graceful shutdown, health checks, structured logging, and colorful console output
+- **Detailed Error Messages** - Clear troubleshooting guidance with colored terminal output
 
 ## Requirements
-- Python 3.10+
-- qBittorrent Web UI enabled
-- A Discord webhook URL
-- Sonarr or Radarr configured to send webhooks
 
-## Quick setup (Windows PowerShell)
+- Python 3.10+
+- qBittorrent with Web UI enabled
+- Discord webhook URL
+- Sonarr/Radarr (optional, for automatic triggers)
+
+## Installation
+
+### Windows PowerShell
 ```powershell
-python -m venv venv
-.\venv\Scripts\Activate.ps1
+# Clone or download the repository
+cd path\to\QbitDiscord
+
+# Create virtual environment
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+
+# Install dependencies
 pip install -r requirements.txt
-# copy .env.example to .env and edit values
+
+# Copy and configure environment file
+copy .env.example .env
+notepad .env
 ```
 
-## Run the server:
-```powershell
-python main.py
+### Linux/macOS
+```bash
+# Clone or download the repository
+cd path/to/QbitDiscord
+
+# Create virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Copy and configure environment file
+cp .env.example .env
+nano .env
 ```
 
 ## Configuration
-- Copy `.env.example` to `.env` and set:
-  - `WEBHOOK_URL`: Your Discord webhook URL
-  - `PORT`: Port for the webhook server (default 5000)
-  - `ACTIVE_UPDATE_INTERVAL`: Poll interval (seconds) while active downloads exist
-  - `QB_URL`, `QB_USER`, `QB_PASS`: qBittorrent settings
-  - `QB_CATEGORIES`: Comma-separated category filters (optional, shows all if not set)
-  - `MESSAGE_ID`: Optional, message ID to edit instead of sending new
-  - `MESSAGE`: Optional, text to include with the embed
-  - `EMBED_SHOW_DOWNLOAD_SPEED`: Show download speed in active torrent rows
-  - `EMBED_SHOW_UPLOAD_SPEED`: Show upload speed in active torrent rows
-  - `EMBED_SHOW_ETA`: Show ETA in active torrent rows
-  - `EMBED_SHOW_TIME_ADDED`: Show the torrent added timestamp
-  - `EMBED_SHOW_TIME_SINCE_STARTED`: Show active time duration
 
-## How it works
-- The server listens for POST requests to `/webhook` from Sonarr/Radarr.
-- It triggers on "Grab" (download started) or "Download" (completed) events.
-- Shows all active torrents by default, or only those matching QB_CATEGORIES if set.
-- Displays the most recent 5 completed downloads (filtered by categories if configured).
-- If `MESSAGE_ID` is set, edits that message; otherwise, sends a new embed.
+Create a `.env` file with the following settings:
 
-## Sonarr/Radarr Setup
-1. In Sonarr/Radarr, go to Settings → Connect → + Add → Webhook
-2. Set URL to: `http://your-server-ip:5000/webhook`
-3. Enable "On Grab" and/or "On Download" events
-4. Save the connection
-
-## Testing
-Send a test POST to the webhook:
-```powershell
-Invoke-WebRequest -Uri http://127.0.0.1:5000/webhook -Method POST -ContentType "application/json" -Body '{"eventType":"Grab"}' -UseBasicParsing
+### Required
+```ini
+WEBHOOK_URL=https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN
 ```
 
+### Optional
+```ini
+# Server settings
+PORT=5000                          # Webhook server port
+ACTIVE_UPDATE_INTERVAL=15          # Update interval in seconds when downloads active
+
+# qBittorrent connection
+QB_URL=http://127.0.0.1:8080      # qBittorrent Web UI URL
+QB_USER=                           # Leave empty if no authentication
+QB_PASS=                           # Leave empty if no authentication
+
+# Filtering (optional)
+QB_CATEGORIES=                     # Comma-separated: tv-arr,movies-arr
+                                   # Leave empty to show all torrents
+
+# Discord message options
+MESSAGE_ID=                        # Message ID to edit (auto-saved after first run)
+MESSAGE=                           # Optional text above the embed
+
+# Embed customization (all default to true)
+EMBED_SHOW_DOWNLOAD_SPEED=true
+EMBED_SHOW_UPLOAD_SPEED=true
+EMBED_SHOW_ETA=true
+EMBED_SHOW_TIME_ADDED=true
+EMBED_SHOW_TIME_SINCE_STARTED=true
+```
+
+### Getting Your Discord Webhook URL
+1. Open Discord and navigate to your server
+2. Go to Server Settings → Integrations → Webhooks
+3. Click "New Webhook" or select an existing one
+4. Copy the Webhook URL
+5. Paste it into your `.env` file as `WEBHOOK_URL`
+
+## Usage
+
+### Start the Server
+```bash
+python main.py
+```
+
+The server will:
+- Start on the configured port (default 5000)
+- Perform an initial status check with qBittorrent
+- Listen for webhook events from Sonarr/Radarr
+- Update Discord automatically when downloads start or complete
+
+### Health Endpoints
+
+The server provides monitoring endpoints:
+
+- `GET /health` - Basic health check (returns 200 OK)
+- `GET /status` - Detailed status with last update time and result
+
+Example:
+```bash
+curl http://localhost:5000/status
+```
+
+## Sonarr/Radarr Integration
+
+### Setup Steps
+1. In Sonarr/Radarr, navigate to **Settings → Connect**
+2. Click the **+** button and select **Webhook**
+3. Configure the webhook:
+   - **Name**: qBittorrent Discord Status
+   - **URL**: `http://your-server-ip:5000/webhook`
+   - **Method**: POST
+   - **On Grab**: ✓ (recommended - triggers when download starts)
+   - **On Download**: ✓ (recommended - triggers when download completes)
+4. Click **Test** to verify connectivity
+5. Save the connection
+
+### Manual Testing
+```powershell
+# Windows PowerShell
+Invoke-WebRequest -Uri http://localhost:5000/webhook -Method POST -ContentType "application/json" -Body '{"eventType":"Grab"}' -UseBasicParsing
+```
+
+```bash
+# Linux/macOS
+curl -X POST http://localhost:5000/webhook \
+  -H "Content-Type: application/json" \
+  -d '{"eventType":"Grab"}'
+```
+
+## Troubleshooting
+
+The application provides detailed error messages with actionable troubleshooting steps. Common issues:
+
+### Configuration Errors
+If you see a **red error message** about configuration:
+- Check that `.env` file exists in the project root
+- Verify `WEBHOOK_URL` starts with `https://discord.com/api/webhooks/`
+- Ensure `PORT` is between 1-65535
+- Verify `QB_URL` starts with `http://` or `https://`
+
+### qBittorrent Connection Issues
+If you see **yellow warnings** about qBittorrent:
+- Verify qBittorrent is running
+- Check that Web UI is enabled: Options → Web UI → Enable
+- Confirm `QB_URL` matches your qBittorrent Web UI address
+- If authentication is required, set `QB_USER` and `QB_PASS`
+- Try "Bypass authentication for localhost" in qBittorrent settings
+
+### Discord Webhook Errors
+If Discord messages fail:
+- Verify webhook URL is correct and not deleted
+- Check internet connectivity
+- Visit [Discord Status](https://discordstatus.com) for service issues
+- Ensure the webhook hasn't been rate limited
+
+### Unicode/Emoji Display Issues
+If you see encoding errors:
+- The application automatically uses UTF-8 for log files
+- Windows console may not display all emojis (but Discord will)
+- Console errors are shown in red/yellow for visibility
+
+## Project Structure
+
+```
+QbitDiscord/
+├── main.py                    # Flask webhook server and orchestration
+├── requirements.txt           # Python dependencies
+├── .env.example              # Configuration template
+├── .gitignore                # Git ignore rules
+├── LICENSE                   # The Unlicense (public domain)
+├── README.md                 # This file
+├── src/
+│   ├── qb_client.py          # qBittorrent API client
+│   ├── discord_webhook.py    # Discord webhook sender
+│   └── graph.py              # Embed generation and formatting
+└── test_graph.py             # Test harness for embed generation
+```
+
+## Advanced Features
+
+### Category Filtering
+By default, the application shows **all torrents** in your qBittorrent client. To filter by categories:
+
+```ini
+QB_CATEGORIES=tv-arr,movies-arr,music
+```
+
+This will only display torrents whose category contains any of these strings (case-insensitive).
+
+### Message Persistence
+After the first run, the application saves the Discord message ID to `message_id.json`. Subsequent updates will edit this message instead of creating new ones. To reset:
+```bash
+rm message_id.json  # Linux/macOS
+del message_id.json # Windows
+```
+
+### Graceful Shutdown
+The application handles `CTRL+C` gracefully:
+- Stops the background monitor thread
+- Closes qBittorrent connections
+- Shuts down the Flask server cleanly
+
+## Development
+
+### Running Tests
+```bash
+python test_graph.py          # Test embed generation
+python test_colored_errors.py # Test colored console output
+```
+
+### Version Information
+Current version: **1.1.0**  
+Build date: **2026-04-28 12:17 EST**
+
+## Contributing
+
+Contributions are welcome! This project uses:
+- **Flask** for the webhook server
+- **requests** for HTTP client operations
+- **colorama** for cross-platform colored console output
+- **python-dotenv** for environment configuration
+
 ## License
-This project is released into the public domain under The Unlicense.
-See [LICENSE](LICENSE) for details.
+
+This project is released into the **public domain** under [The Unlicense](LICENSE).
+
+You are free to use, modify, distribute, and do whatever you want with this code without any restrictions.
