@@ -1,7 +1,10 @@
 import requests
 import time
+import logging
 from typing import List, Dict, Callable, Any
 from functools import wraps
+
+logger = logging.getLogger(__name__)
 
 # Constants
 DEFAULT_TIMEOUT = 30  # seconds
@@ -29,11 +32,15 @@ def retry_with_backoff(max_attempts: int = 3, initial_delay: float = 1.0, backof
                 except (requests.exceptions.RequestException, requests.exceptions.Timeout) as e:
                     last_exception = e
                     if attempt < max_attempts - 1:
-                        print(f"Attempt {attempt + 1} failed: {e}. Retrying in {delay}s...")
+                        msg = f"Attempt {attempt + 1} failed: {e}. Retrying in {delay}s..."
+                        logger.warning(msg)
+                        print(msg)
                         time.sleep(delay)
                         delay *= backoff_factor
                     else:
-                        print(f"All {max_attempts} attempts failed.")
+                        msg = f"All {max_attempts} attempts failed."
+                        logger.error(msg)
+                        print(msg)
             
             raise last_exception
         return wrapper
