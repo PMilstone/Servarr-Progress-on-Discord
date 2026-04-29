@@ -28,32 +28,24 @@ A production-ready webhook server that displays qBittorrent download progress in
 # Clone or download the repository
 cd path\to\QbitDiscord
 
-# Create virtual environment
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run setup wizard
+# Run setup wizard (automatically creates venv and installs dependencies)
 .\setup.bat
 ```
 
 ### Linux/Mac Bash
-
-### Linux/macOS
 ```bash
 # Clone or download the repository
 cd path/to/QbitDiscord
 
-# Create virtual environment
-python3 -m venv .venv
-source .venv/bin/activate
+# Run setup wizard (automatically creates venv and installs dependencies)
+./setup.sh
+```
 
-# Install dependencies
-pip install -r requirements.txt
-# Run setup wizard
-./setup.sh```
+**Note:** The setup wizard automatically:
+- Creates a Python virtual environment (`.venv`)
+- Installs all required dependencies from `requirements.txt`
+- Guides you through configuration
+- Creates your `.env` file
 
 ## Configuration
 

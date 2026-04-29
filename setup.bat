@@ -18,14 +18,35 @@ if errorlevel 1 (
 
 REM Check if virtual environment exists
 if not exist ".venv\Scripts\python.exe" (
-    echo Error: Virtual environment not found
-    echo Please run: python -m venv .venv
-    echo Then run: .venv\Scripts\pip install -r requirements.txt
-    pause
-    exit /b 1
+    echo Virtual environment not found. Creating it now...
+    python -m venv .venv
+    if errorlevel 1 (
+        echo Error: Failed to create virtual environment
+        pause
+        exit /b 1
+    )
+    echo Virtual environment created successfully!
+    echo.
+)
+
+REM Check if requirements are installed by trying to import a key dependency
+echo Checking dependencies...
+.venv\Scripts\python.exe -c "import flask" >nul 2>&1
+if errorlevel 1 (
+    echo Installing dependencies from requirements.txt...
+    .venv\Scripts\pip.exe install -r requirements.txt
+    if errorlevel 1 (
+        echo Error: Failed to install dependencies
+        pause
+        exit /b 1
+    )
+    echo Dependencies installed successfully!
+    echo.
 )
 
 REM Run setup script with virtual environment
+echo Starting setup wizard...
+echo.
 .venv\Scripts\python.exe setup.py
 
 pause
