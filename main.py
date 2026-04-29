@@ -491,8 +491,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     
-    # Store test mode flag globally for monitoring thread
-    global _use_test_data
+    # Store test mode flag for monitoring thread
     _use_test_data = args.test
     
     # Register signal handlers for graceful shutdown
