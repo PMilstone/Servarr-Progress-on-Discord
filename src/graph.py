@@ -189,6 +189,7 @@ def make_embed(active_torrents: List[Dict], completed_torrents: List[Dict], opti
             "title": "Download Progress",
             "description": "No downloads found.",
             "color": 3447003,
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
         }
 
     return {
@@ -196,4 +197,5 @@ def make_embed(active_torrents: List[Dict], completed_torrents: List[Dict], opti
         "description": "",
         "color": 3447003,
         "fields": fields,
+        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat()
     }
