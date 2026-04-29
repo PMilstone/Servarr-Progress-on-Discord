@@ -70,6 +70,8 @@ WEBHOOK_URL=https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN
 # Server settings
 PORT=5000                          # Webhook server port
 ACTIVE_UPDATE_INTERVAL=15          # Update interval in seconds when downloads active
+LOG_MAX_SIZE=10485760              # Max log file size in bytes (default 10MB)
+                                   # Log rotates when this size is reached
 
 # qBittorrent connection
 QB_URL=http://127.0.0.1:8080      # qBittorrent Web UI URL
@@ -111,6 +113,28 @@ The server will:
 - Perform an initial status check with qBittorrent
 - Listen for webhook events from Sonarr/Radarr
 - Update Discord automatically when downloads start or complete
+
+### Test Mode
+
+Run the server with mock Linux distro torrents (no qBittorrent required):
+```bash
+python main.py --test
+```
+
+This is useful for:
+- Testing Discord webhook integration without qBittorrent
+- Verifying configuration and connectivity
+- Previewing the embed format and colors
+- Development and debugging
+
+The test mode uses mock data with Ubuntu, Debian, Fedora, Arch Linux, and Linux Mint torrents.
+
+### Command Line Options
+
+```bash
+python main.py --help       # Show all available options
+python main.py --test       # Run with mock test data
+```
 
 ### Health Endpoints
 
@@ -183,6 +207,14 @@ If you see encoding errors:
 - Windows console may not display all emojis (but Discord will)
 - Console errors are shown in red/yellow for visibility
 
+### Log Files
+The application creates rotating log files:
+- Main log: `qbitdiscord.log`
+- When the log reaches the configured size (default 10MB), it rotates automatically
+- Up to 3 backup files are kept: `qbitdiscord.log.1`, `qbitdiscord.log.2`, `qbitdiscord.log.3`
+- Older backups are automatically deleted to save disk space
+- Configure max size with `LOG_MAX_SIZE` in `.env` (in bytes)
+
 ## Project Structure
 
 ```
@@ -226,15 +258,23 @@ The application handles `CTRL+C` gracefully:
 
 ## Development
 
-### Running Tests
+### Testing
+
+**Standalone test:**
 ```bash
-python test_graph.py          # Test embed generation
-python test_colored_errors.py # Test colored console output
+python test_graph.py          # Test embed generation with mock data
 ```
 
+**Live test with Discord:**
+```bash
+python main.py --test         # Run server with mock torrents
+```
+
+The `--test` flag allows you to test the complete flow (server + Discord webhook) without needing qBittorrent installed.
+
 ### Version Information
-Current version: **1.1.0**  
-Build date: **2026-04-28 12:17 EST**
+Current version: **1.2.0**  
+Build date: **2026-04-29 12:34 PM EST**
 
 ## Contributing
 

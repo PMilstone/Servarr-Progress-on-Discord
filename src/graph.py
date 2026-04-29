@@ -100,27 +100,6 @@ def _rainbow_progress_bar(progress_ratio: float, length: int = PROGRESS_BAR_LENG
     bar = "".join(colors[i % len(colors)] for i in range(filled))
     return bar + ("⬜" * (length - filled))
 
-def make_text_progress(torrents: List[Dict]) -> str:
-    if not torrents:
-        return "No active torrents"
-
-    lines = ["**Active Torrent Progress:**\n"]
-    for t in torrents:
-        name = t["name"]
-        progress_ratio = t["progress"]
-        progress = progress_ratio * 100
-        dls = _human_speed(t.get("dlspeed", 0))
-        uls = _human_speed(t.get("ulspeed", 0))
-
-        # Create progress bar with emojis
-        bar_length = 12
-        bar = _rainbow_progress_bar(progress_ratio, bar_length)
-
-        line = f"**{name}**\n{bar} {progress:.1f}%\n↓ {dls} ↑ {uls}\n\n"
-        lines.append(line)
-
-    return "".join(lines)
-
 def make_embed(active_torrents: List[Dict], completed_torrents: List[Dict], options: Dict[str, bool] | None = None) -> Dict[str, object]:
     options = options or {}
     show_download_speed = options.get("show_download_speed", True)

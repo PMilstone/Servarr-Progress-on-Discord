@@ -1,17 +1,19 @@
 """
 qBittorrent Discord Webhook Service
-Version: 1.1.0
-Build: 2026-04-28 12:17 EST
+Version: 1.2.0
+Build: 2026-04-29 12:34 PM EST
 """
 
 import os
 import threading
 import time
 import logging
+from logging.handlers import RotatingFileHandler
 import json
 import datetime
 import signal
 import sys
+import argparse
 from pathlib import Path
 from typing import Optional
 from flask import Flask, request, jsonify
@@ -25,15 +27,120 @@ from src.discord_webhook import send_embed
 colorama_init(autoreset=True)
 
 # Version Information
-VERSION = "1.1.0"
-BUILD_DATE = "2026-04-28 12:17 EST"
+VERSION = "1.2.0"
+BUILD_DATE = "2026-04-29 12:34 PM EST"
 
-# Configure logging with UTF-8 encoding for Unicode character support
+# Mock test data for --test mode
+MOCK_ACTIVE_TORRENTS = [
+    {
+        "name": "Ubuntu.22.04.3.LTS.Desktop.amd64.iso",
+        "progress": 0.65,
+        "dlspeed": 5500000,  # 5.5 MB/s
+        "ulspeed": 125000,   # 125 kB/s
+        "eta": 450,          # 7.5 minutes
+        "added_on": 1714000000,
+        "time_active": 300,  # 5 minutes
+        "size": 3500000000,
+        "state": "downloading"
+    },
+    {
+        "name": "Debian.12.5.0.amd64.netinst.iso",
+        "progress": 0.92,
+        "dlspeed": 2300000,  # 2.3 MB/s
+        "ulspeed": 50000,    # 50 kB/s
+        "eta": 120,          # 2 minutes
+        "added_on": 1713990000,
+        "time_active": 1800, # 30 minutes
+        "size": 650000000,
+        "state": "downloading"
+    }
+]
+
+MOCK_COMPLETED_TORRENTS = [
+    {
+        "name": "Fedora.Workstation.39.x86_64.iso",
+        "completion_on": 1714350000,
+        "size": 2100000000
+    },
+    {
+        "name": "Arch.Linux.2024.04.01.x86_64.iso",
+        "completion_on": 1714340000,
+        "size": 850000000
+    },
+    {
+        "name": "Linux.Mint.21.3.Cinnamon.64bit.iso",
+        "completion_on": 1714330000,
+        "size": 2800000000
+    }
+]
+
+# Mock test data for --test mode
+MOCK_ACTIVE_TORRENTS = [
+    {
+        "name": "Ubuntu.22.04.3.LTS.Desktop.amd64.iso",
+        "progress": 0.65,
+        "dlspeed": 5500000,  # 5.5 MB/s
+        "ulspeed": 125000,   # 125 kB/s
+        "eta": 450,          # 7.5 minutes
+        "added_on": 1714000000,
+        "time_active": 300,  # 5 minutes
+        "size": 3500000000,
+        "state": "downloading"
+    },
+    {
+        "name": "Debian.12.5.0.amd64.netinst.iso",
+        "progress": 0.92,
+        "dlspeed": 2300000,  # 2.3 MB/s
+        "ulspeed": 50000,    # 50 kB/s
+        "eta": 120,          # 2 minutes
+        "added_on": 1713990000,
+        "time_active": 1800, # 30 minutes
+        "size": 650000000,
+        "state": "downloading"
+    }
+]
+
+MOCK_COMPLETED_TORRENTS = [
+    {
+        "name": "Fedora.Workstation.39.x86_64.iso",
+        "completion_on": 1714350000,
+        "size": 2100000000
+    },
+    {
+        "name": "Arch.Linux.2024.04.01.x86_64.iso",
+        "completion_on": 1714340000,
+        "size": 850000000
+    },
+    {
+        "name": "Linux.Mint.21.3.Cinnamon.64bit.iso",
+        "completion_on": 1714330000,
+        "size": 2800000000
+    }
+]
+
+# Constants
+DEFAULT_PORT = 5000
+DEFAULT_UPDATE_INTERVAL = 15
+DEFAULT_QB_URL = "http://127.0.0.1:8080"
+MIN_UPDATE_INTERVAL = 1
+MESSAGE_ID_FILE = "message_id.json"
+DEFAULT_LOG_MAX_SIZE = 10 * 1024 * 1024  # 10 MB in bytes
+
+# Load environment early for logging configuration
+load_dotenv()
+
+# Configure logging with UTF-8 encoding and rotating file handler
+log_max_size = int(os.getenv('LOG_MAX_SIZE', DEFAULT_LOG_MAX_SIZE))
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('qbitdiscord.log', encoding='utf-8'),
+        RotatingFileHandler(
+            'qbitdiscord.log',
+            maxBytes=log_max_size,
+            backupCount=3,
+            encoding='utf-8'
+        ),
         logging.StreamHandler()
     ]
 )
@@ -54,13 +161,6 @@ def print_warning(msg: str) -> None:
 def print_success(msg: str) -> None:
     """Print success message in green."""
     print(f"{Fore.GREEN}{msg}{Style.RESET_ALL}")
-
-# Constants
-DEFAULT_PORT = 5000
-DEFAULT_UPDATE_INTERVAL = 15
-DEFAULT_QB_URL = "http://127.0.0.1:8080"
-MIN_UPDATE_INTERVAL = 1
-MESSAGE_ID_FILE = "message_id.json"
 
 app = Flask(__name__)
 _active_monitor_thread = None
@@ -191,69 +291,76 @@ def save_message_id(message_id: str) -> None:
     except Exception as e:
         logger.warning(f"Could not save message ID to file: {e}")
 
-def run_status_update(cfg: dict) -> bool:
+def run_status_update(cfg: dict, use_test_data: bool = False) -> bool:
     global _last_update_time, _last_update_status
     
     try:
-        # Parse categories from config (None means no filtering)
-        categories = None
-        if cfg.get("QB_CATEGORIES"):
-            categories = [cat.strip() for cat in cfg["QB_CATEGORIES"].split(",")]
+        if use_test_data:
+            # Use mock data for testing
+            active_torrents = MOCK_ACTIVE_TORRENTS
+            completed_torrents = MOCK_COMPLETED_TORRENTS
+            logger.info("Using test data (--test mode)")
+            print("Using mock Linux distro torrents for testing")
+        else:
+            # Parse categories from config (None means no filtering)
+            categories = None
+            if cfg.get("QB_CATEGORIES"):
+                categories = [cat.strip() for cat in cfg["QB_CATEGORIES"].split(",")]
+            
+            with QBClient(cfg["QB_URL"], cfg.get("QB_USER"), cfg.get("QB_PASS"), categories) as qb:
+                if not qb.login():
+                    qb_url = cfg["QB_URL"]
+                    has_creds = bool(cfg.get("QB_USER"))
+                    error_msg = (
+                        f"\n{'=' * 70}\n"
+                        f"qBittorrent Login Failed\n"
+                        f"{'=' * 70}\n"
+                        f"URL: {qb_url}\n"
+                        f"Credentials provided: {'Yes' if has_creds else 'No'}\n\n"
+                        f"Troubleshooting steps:\n"
+                        f"  1. Check if qBittorrent is running\n"
+                        f"  2. Verify qBittorrent Web UI is accessible at {qb_url}\n"
+                        f"  3. Check if Web UI is enabled: Options → Web UI → Enable\n"
+                    )
+                    if has_creds:
+                        error_msg += (
+                            f"  4. Verify QB_USER and QB_PASS in .env match Web UI credentials\n"
+                            f"  5. Check if 'Bypass authentication for localhost' is enabled\n"
+                        )
+                    else:
+                        error_msg += (
+                            f"  4. If Web UI requires login, add QB_USER and QB_PASS to .env\n"
+                            f"  5. Or enable 'Bypass authentication for localhost' in qBittorrent\n"
+                        )
+                    error_msg += f"{'=' * 70}\n"
+                    raise RuntimeError(error_msg)
+
+                active_torrents = qb.get_active_torrents()
+                completed_torrents = qb.get_recent_completed_torrents(5)
+
+        embed_options = {
+            "show_download_speed": cfg.get("EMBED_SHOW_DOWNLOAD_SPEED", True),
+            "show_upload_speed": cfg.get("EMBED_SHOW_UPLOAD_SPEED", True),
+            "show_eta": cfg.get("EMBED_SHOW_ETA", True),
+            "show_time_added": cfg.get("EMBED_SHOW_TIME_ADDED", True),
+            "show_time_since_started": cfg.get("EMBED_SHOW_TIME_SINCE_STARTED", True),
+        }
+        embed = make_embed(active_torrents, completed_torrents, embed_options)
         
-        with QBClient(cfg["QB_URL"], cfg.get("QB_USER"), cfg.get("QB_PASS"), categories) as qb:
-            if not qb.login():
-                qb_url = cfg["QB_URL"]
-                has_creds = bool(cfg.get("QB_USER"))
-                error_msg = (
-                    f"\n{'=' * 70}\n"
-                    f"qBittorrent Login Failed\n"
-                    f"{'=' * 70}\n"
-                    f"URL: {qb_url}\n"
-                    f"Credentials provided: {'Yes' if has_creds else 'No'}\n\n"
-                    f"Troubleshooting steps:\n"
-                    f"  1. Check if qBittorrent is running\n"
-                    f"  2. Verify qBittorrent Web UI is accessible at {qb_url}\n"
-                    f"  3. Check if Web UI is enabled: Options → Web UI → Enable\n"
-                )
-                if has_creds:
-                    error_msg += (
-                        f"  4. Verify QB_USER and QB_PASS in .env match Web UI credentials\n"
-                        f"  5. Check if 'Bypass authentication for localhost' is enabled\n"
-                    )
-                else:
-                    error_msg += (
-                        f"  4. If Web UI requires login, add QB_USER and QB_PASS to .env\n"
-                        f"  5. Or enable 'Bypass authentication for localhost' in qBittorrent\n"
-                    )
-                error_msg += f"{'=' * 70}\n"
-                raise RuntimeError(error_msg)
-
-            active_torrents = qb.get_active_torrents()
-            completed_torrents = qb.get_recent_completed_torrents(5)
-
-            embed_options = {
-                "show_download_speed": cfg.get("EMBED_SHOW_DOWNLOAD_SPEED", True),
-                "show_upload_speed": cfg.get("EMBED_SHOW_UPLOAD_SPEED", True),
-                "show_eta": cfg.get("EMBED_SHOW_ETA", True),
-                "show_time_added": cfg.get("EMBED_SHOW_TIME_ADDED", True),
-                "show_time_since_started": cfg.get("EMBED_SHOW_TIME_SINCE_STARTED", True),
-            }
-            embed = make_embed(active_torrents, completed_torrents, embed_options)
-            
-            # Use persisted message ID if not in config
-            message_id = cfg.get("MESSAGE_ID") or load_persisted_message_id()
-            
-            # Send embed and capture returned message ID
-            returned_id = send_embed(cfg["WEBHOOK_URL"], embed, cfg.get("MESSAGE"), message_id)
-            
-            # If this was a new message, save the ID
-            if returned_id and not cfg.get("MESSAGE_ID"):
-                save_message_id(returned_id)
-                logger.info(f"Created new Discord message with ID: {returned_id}")
-            
-            _last_update_time = datetime.datetime.now()
-            _last_update_status = "success"
-            return len(active_torrents) > 0
+        # Use persisted message ID if not in config
+        message_id = cfg.get("MESSAGE_ID") or load_persisted_message_id()
+        
+        # Send embed and capture returned message ID
+        returned_id = send_embed(cfg["WEBHOOK_URL"], embed, cfg.get("MESSAGE"), message_id)
+        
+        # If this was a new message, save the ID
+        if returned_id and not cfg.get("MESSAGE_ID"):
+            save_message_id(returned_id)
+            logger.info(f"Created new Discord message with ID: {returned_id}")
+        
+        _last_update_time = datetime.datetime.now()
+        _last_update_status = "success"
+        return len(active_torrents) > 0
     except Exception as e:
         _last_update_status = f"error: {str(e)}"
         raise
@@ -370,6 +477,19 @@ def webhook():
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(
+        description='qBittorrent Discord Webhook Service',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=f"Version {VERSION} - {BUILD_DATE}"
+    )
+    parser.add_argument(
+        '--test',
+        action='store_true',
+        help='Run with mock Linux distro torrent data (no qBittorrent connection required)'
+    )
+    args = parser.parse_args()
+    
     # Register signal handlers for graceful shutdown
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
@@ -379,8 +499,12 @@ if __name__ == "__main__":
     print(f"qBittorrent Discord Webhook Service")
     print(f"Version: {VERSION}")
     print(f"Build: {BUILD_DATE}")
+    if args.test:
+        print(f"Mode: TEST (using mock data)")
     print("=" * 60)
     logger.info(f"Starting service - Version {VERSION}, Build {BUILD_DATE}")
+    if args.test:
+        logger.info("Running in TEST mode with mock data")
     
     try:
         cfg = load_config()
@@ -395,7 +519,7 @@ if __name__ == "__main__":
     
     if cfg.get("WEBHOOK_URL"):
         try:
-            has_active = run_status_update(cfg)
+            has_active = run_status_update(cfg, use_test_data=args.test)
             if has_active:
                 ensure_active_monitor_running()
             msg = "Startup status check completed successfully."

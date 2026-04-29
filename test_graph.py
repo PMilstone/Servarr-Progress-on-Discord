@@ -10,7 +10,7 @@ import json
 # Mock torrent data matching actual qBittorrent API structure
 mock_active_torrents = [
     {
-        "name": "Ubuntu.22.04.LTS.x64.iso",
+        "name": "Ubuntu.22.04.3.LTS.Desktop.amd64.iso",
         "progress": 0.65,
         "dlspeed": 5500000,  # 5.5 MB/s
         "ulspeed": 125000,   # 125 kB/s
@@ -21,33 +21,33 @@ mock_active_torrents = [
         "state": "downloading"
     },
     {
-        "name": "The.Matrix.1999.1080p.BluRay.x264",
+        "name": "Debian.12.5.0.amd64.netinst.iso",
         "progress": 0.92,
         "dlspeed": 2300000,  # 2.3 MB/s
         "ulspeed": 50000,    # 50 kB/s
         "eta": 120,          # 2 minutes
         "added_on": 1713990000,
         "time_active": 1800, # 30 minutes
-        "size": 8500000000,
+        "size": 650000000,
         "state": "downloading"
     }
 ]
 
 mock_completed_torrents = [
     {
-        "name": "Saturday.Night.Live.S47E12.1080p.WEB.h264",
+        "name": "Fedora.Workstation.39.x86_64.iso",
         "completion_on": 1714350000,
-        "size": 1500000000
+        "size": 2100000000
     },
     {
-        "name": "Breaking.Bad.S05E16.Felina.1080p.BluRay",
+        "name": "Arch.Linux.2024.04.01.x86_64.iso",
         "completion_on": 1714340000,
-        "size": 2200000000
+        "size": 850000000
     },
     {
-        "name": "The.Office.US.S02E01.1080p.WEB",
+        "name": "Linux.Mint.21.3.Cinnamon.64bit.iso",
         "completion_on": 1714330000,
-        "size": 1100000000
+        "size": 2800000000
     }
 ]
 
