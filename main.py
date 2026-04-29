@@ -28,12 +28,12 @@ colorama_init(autoreset=True)
 VERSION = "1.1.0"
 BUILD_DATE = "2026-04-28 12:17 EST"
 
-# Configure logging
+# Configure logging with UTF-8 encoding for Unicode character support
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('qbitdiscord.log'),
+        logging.FileHandler('qbitdiscord.log', encoding='utf-8'),
         logging.StreamHandler()
     ]
 )
