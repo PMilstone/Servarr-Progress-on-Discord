@@ -75,8 +75,14 @@ chmod +x setup.sh
 The wizard will:
 - Guide you through all configuration options
 - Validate your inputs
-- Show a preview of your Discord embed settings
+- **Send a test message with mock data immediately** to verify webhook works
+- Ask you to confirm the message appeared in Discord
+- Let you customize the embed display settings
+- **Update the test message in real-time** with your customizations
+- Automatically capture the message ID for editing
 - Create a ready-to-use `.env` file
+
+The test message sent during setup will be the one edited by the service - no spam!
 
 ### Option 2: Manual Configuration
 
@@ -269,11 +275,14 @@ QB_CATEGORIES=tv-arr,movies-arr,music
 This will only display torrents whose category contains any of these strings (case-insensitive).
 
 ### Message Persistence
-After the first run, the application saves the Discord message ID to `message_id.json`. Subsequent updates will edit this message instead of creating new ones. To reset:
-```bash
-rm message_id.json  # Linux/macOS
-del message_id.json # Windows
-```
+The application uses the `MESSAGE_ID` from your `.env` file to edit the same Discord message with each update. If `MESSAGE_ID` is not set, a new message will be created on each update.
+
+To get a message ID:
+1. Right-click a message in Discord
+2. Select "Copy Message ID" (you may need to enable Developer Mode in Discord settings)
+3. Add it to your `.env` file: `MESSAGE_ID=123456789012345678`
+
+The setup wizard can automatically capture this for you during initial configuration.
 
 ### Graceful Shutdown
 The application handles `CTRL+C` gracefully:

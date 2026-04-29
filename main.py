@@ -123,7 +123,6 @@ DEFAULT_PORT = 5000
 DEFAULT_UPDATE_INTERVAL = 15
 DEFAULT_QB_URL = "http://127.0.0.1:8080"
 MIN_UPDATE_INTERVAL = 1
-MESSAGE_ID_FILE = "message_id.json"
 DEFAULT_LOG_MAX_SIZE = 10 * 1024 * 1024  # 10 MB in bytes
 
 # Load environment early for logging configuration
@@ -272,26 +271,6 @@ def load_config():
     validate_config(cfg)
     return cfg
 
-def load_persisted_message_id() -> Optional[str]:
-    """Load message ID from persistent storage."""
-    if Path(MESSAGE_ID_FILE).exists():
-        try:
-            with open(MESSAGE_ID_FILE, 'r') as f:
-                data = json.load(f)
-                return data.get("message_id")
-        except Exception as e:
-            logger.warning(f"Could not load message ID from file: {e}")
-    return None
-
-def save_message_id(message_id: str) -> None:
-    """Save message ID to persistent storage."""
-    try:
-        with open(MESSAGE_ID_FILE, 'w') as f:
-            json.dump({"message_id": message_id, "created_at": datetime.datetime.now().isoformat()}, f)
-        logger.info(f"Saved message ID to {MESSAGE_ID_FILE}")
-    except Exception as e:
-        logger.warning(f"Could not save message ID to file: {e}")
-
 def run_status_update(cfg: dict, use_test_data: bool = False) -> bool:
     global _last_update_time, _last_update_status
     
@@ -348,16 +327,9 @@ def run_status_update(cfg: dict, use_test_data: bool = False) -> bool:
         }
         embed = make_embed(active_torrents, completed_torrents, embed_options, is_test_mode=use_test_data)
         
-        # Use persisted message ID if not in config
-        message_id = cfg.get("MESSAGE_ID") or load_persisted_message_id()
-        
-        # Send embed and capture returned message ID
-        returned_id = send_embed(cfg["WEBHOOK_URL"], embed, cfg.get("MESSAGE"), message_id)
-        
-        # If this was a new message, save the ID
-        if returned_id and not cfg.get("MESSAGE_ID"):
-            save_message_id(returned_id)
-            logger.info(f"Created new Discord message with ID: {returned_id}")
+        # Send embed using MESSAGE_ID from config if provided
+        message_id = cfg.get("MESSAGE_ID")
+        send_embed(cfg["WEBHOOK_URL"], embed, cfg.get("MESSAGE"), message_id)
         
         _last_update_time = datetime.datetime.now()
         _last_update_status = "success"

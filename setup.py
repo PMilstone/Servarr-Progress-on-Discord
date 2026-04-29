@@ -155,14 +155,23 @@ def show_embed_preview(embed_settings):
     
     print(Colors.BOLD + Colors.GREEN + "=" * 70 + Colors.END + "\n")
 
-def send_test_message_to_discord(webhook_url, embed_settings, message_content=None):
+def send_test_message_to_discord(webhook_url, embed_settings, message_content=None, existing_message_id=None):
     """
     Send a test message to Discord and return the message ID.
+    
+    Args:
+        webhook_url: Discord webhook URL
+        embed_settings: Dictionary of embed display settings
+        message_content: Optional message content to send with embed
+        existing_message_id: If provided, will edit this message instead of creating new
     
     Returns:
         Message ID if successful, None if failed
     """
-    print("\n" + Colors.BOLD + "Sending test message to Discord..." + Colors.END)
+    if existing_message_id:
+        print("\n" + Colors.BOLD + "Updating test message in Discord..." + Colors.END)
+    else:
+        print("\n" + Colors.BOLD + "Sending test message to Discord..." + Colors.END)
     
     # Create mock test data
     mock_active = [{
@@ -197,10 +206,13 @@ def send_test_message_to_discord(webhook_url, embed_settings, message_content=No
     
     try:
         # Send to Discord and capture message ID
-        message_id = send_embed(webhook_url, embed, message_content, message_id=None)
+        message_id = send_embed(webhook_url, embed, message_content, message_id=existing_message_id)
         
         if message_id:
-            print_success(f"Test message sent successfully!")
+            if existing_message_id:
+                print_success(f"Test message updated successfully!")
+            else:
+                print_success(f"Test message sent successfully!")
             print(f"\n{Colors.BOLD}Message ID:{Colors.END} {message_id}")
             print(f"{Colors.BOLD}Check your Discord channel to see the live embed!{Colors.END}\n")
             return message_id
@@ -263,8 +275,64 @@ def main():
     config["QB_USER"] = prompt_input("qBittorrent username", required=False)
     config["QB_PASS"] = prompt_input("qBittorrent password", required=False)
     
+    # Send initial test message with default settings to verify webhook
+    print_header("Step 4: Discord Webhook Test")
+    
+    print("Let's verify your webhook works by sending a test message!")
+    print("This will send a test embed with mock torrent data to your Discord channel.\n")
+    
+    # Use default embed settings for initial test
+    default_embed_settings = {
+        "EMBED_SHOW_DOWNLOAD_SPEED": True,
+        "EMBED_SHOW_UPLOAD_SPEED": True,
+        "EMBED_SHOW_ETA": True,
+        "EMBED_SHOW_TIME_ADDED": True,
+        "EMBED_SHOW_TIME_SINCE_STARTED": True,
+    }
+    
+    if prompt_yes_no("Send test message to Discord now?", default=True):
+        print("\n" + Colors.BOLD + "Sending test message with mock data..." + Colors.END)
+        
+        message_id = send_test_message_to_discord(
+            config['WEBHOOK_URL'],
+            default_embed_settings,
+            message_content=None
+        )
+        
+        if not message_id:
+            print_error("\nFailed to send test message to Discord.")
+            print("Possible issues:")
+            print("  • Invalid webhook URL")
+            print("  • Webhook was deleted")
+            print("  • Network connectivity problems")
+            print("\nSetup cannot continue without a valid webhook.")
+            return
+        
+        # Success - ask user to verify
+        print("\n" + Colors.BOLD + Colors.GREEN + "=" * 70 + Colors.END)
+        print(Colors.BOLD + Colors.GREEN + "✓ TEST MESSAGE SENT!" + Colors.END)
+        print(Colors.BOLD + Colors.GREEN + "=" * 70 + Colors.END)
+        print(f"\n{Colors.BOLD}Check your Discord channel now!{Colors.END}")
+        print(f"A test message should appear with mock download progress.\n")
+        print(f"Message ID: {Colors.GREEN}{message_id}{Colors.END}\n")
+        
+        if not prompt_yes_no("Did you see the test message in Discord?", default=True):
+            print_error("\nTest message not visible in Discord.")
+            print("Please check:")
+            print("  • You're looking at the correct Discord channel")
+            print("  • The webhook URL is correct")
+            print("  • You have permission to view the channel")
+            if not prompt_yes_no("\nContinue setup anyway?", default=False):
+                print("\nSetup cancelled.")
+                return
+        
+        print_success("Great! Webhook is working correctly.\n")
+    else:
+        print_warning("Skipping test message. Configuration will continue without validation.\n")
+        message_id = None
+    
     # Optional Settings
-    print_header("Step 4: Optional Settings")
+    print_header("Step 5: Optional Settings")
     config["MESSAGE"] = prompt_input("Optional message to send with embeds", default="Download status update", required=False)
     
     print("\nCategory Filter (optional):")
@@ -272,51 +340,68 @@ def main():
     print("  Or enter comma-separated category substrings to filter (e.g., 'tv-arr,movies-arr')\n")
     config["QB_CATEGORIES"] = prompt_input("Category filter", required=False)
     
-    # Embed Display Settings with Preview Loop
-    print_header("Step 5: Embed Display Settings")
+    # Embed Display Settings with Live Discord Preview
+    print_header("Step 6: Embed Display Customization")
+    
+    if message_id:
+        print("Now let's customize what information to show in the embed.")
+        print("After you configure the settings, we'll update the test message in Discord")
+        print("so you can see exactly how it will look.\n")
+    else:
+        print("Configure what information to show in the Discord embed:\n")
+    
+    config["MESSAGE_ID"] = message_id or ""  # Use captured message ID or empty
     
     while True:
         embed_settings = get_embed_settings()
         config.update(embed_settings)
         
-        show_embed_preview(embed_settings)
-        
-        if prompt_yes_no("Does this embed preview look good?", default=True):
-            break
-        
-        print("\nLet's adjust the embed settings...\n")
-    
-    # Send test message to Discord and capture message ID
-    print_header("Step 6: Discord Test Message")
-    
-    print("The setup wizard can send a test message to your Discord channel.")
-    print("This will:")
-    print("  • Validate your webhook URL works")
-    print("  • Show you the actual live Discord embed")
-    print("  • Automatically capture the message ID for editing")
-    print(f"  • The service will edit this message instead of creating new ones\n")
-    
-    config["MESSAGE_ID"] = ""  # Default to empty
-    
-    if prompt_yes_no("Send a test message to Discord now?", default=True):
-        message_id = send_test_message_to_discord(
-            config['WEBHOOK_URL'],
-            embed_settings,
-            config.get('MESSAGE')
-        )
-        
         if message_id:
-            print_success("Message ID captured! The service will edit this message on future updates.")
-            config["MESSAGE_ID"] = message_id
-        else:
-            print_warning("Could not capture message ID. The service will create a new message on first run.")
-            if prompt_yes_no("Continue anyway?", default=True):
-                pass
+            # Update the existing test message with new settings
+            updated_id = send_test_message_to_discord(
+                config['WEBHOOK_URL'],
+                embed_settings,
+                config.get('MESSAGE'),
+                existing_message_id=message_id
+            )
+            
+            if not updated_id:
+                print_warning("Could not update test message, but settings are saved.")
             else:
-                print("\nSetup cancelled.")
-                return
+                print("\n" + Colors.BOLD + Colors.GREEN + "=" * 70 + Colors.END)
+                print(Colors.BOLD + Colors.GREEN + "CHECK YOUR DISCORD CHANNEL NOW!" + Colors.END)
+                print(Colors.BOLD + Colors.GREEN + "=" * 70 + Colors.END)
+                print(f"\n{Colors.BOLD}The test message has been updated with your settings.{Colors.END}\n")
+            
+            if prompt_yes_no("Does the message look good in Discord?", default=True):
+                print_success("Perfect! Settings confirmed.")
+                break
+            
+            print("\nLet's adjust the settings and try again...\n")
+        else:
+            # No test message sent, just confirm settings
+            show_embed_preview(embed_settings)
+            
+            if prompt_yes_no("Do these settings look good?", default=True):
+                break
+            
+            print("\nLet's adjust the settings...\n")
+    
+    # Message ID confirmation
+    print_header("Step 7: Configuration Summary")
+    
+    print(f"{Colors.BOLD}Configuration Complete!{Colors.END}\n")
+    print(f"• Discord webhook configured")
+    print(f"• qBittorrent connection configured")
+    print(f"• Embed settings configured")
+    
+    if config.get('MESSAGE_ID'):
+        print(f"• Message ID captured: {Colors.GREEN}{config['MESSAGE_ID']}{Colors.END}")
+        print(f"\nThe service will edit the test message you saw in Discord.")
+        print(f"No new messages will be created - it will update that same message!\n")
     else:
-        print("\nSkipping test message. The service will create a new message on first run.")
+        print(f"• Message ID: {Colors.YELLOW}Not set{Colors.END}")
+        print(f"\nThe service will create a new message on first run.\n")
     
     # Write .env file
     print_header("Writing Configuration")
