@@ -147,7 +147,14 @@ def run_status_update(cfg: dict) -> bool:
         
         with QBClient(cfg["QB_URL"], cfg.get("QB_USER"), cfg.get("QB_PASS"), categories) as qb:
             if not qb.login():
-                raise RuntimeError("qBittorrent login failed")
+                qb_url = cfg["QB_URL"]
+                has_creds = bool(cfg.get("QB_USER"))
+                raise RuntimeError(
+                    f"qBittorrent login failed. "
+                    f"URL: {qb_url}, "
+                    f"Credentials provided: {has_creds}. "
+                    f"Check if qBittorrent is running and credentials are correct."
+                )
 
             active_torrents = qb.get_active_torrents()
             completed_torrents = qb.get_recent_completed_torrents(5)
@@ -319,13 +326,20 @@ if __name__ == "__main__":
             has_active = run_status_update(cfg)
             if has_active:
                 ensure_active_monitor_running()
-            msg = "Startup status check completed."
+            msg = "✓ Startup status check completed successfully."
             logger.info(msg)
             print(msg)
         except Exception as e:
-            msg = f"Startup status check failed: {e}"
-            logger.error(msg)
-            print(msg)
+            # Log error but continue - qBittorrent might be offline temporarily
+            logger.warning(f"Startup status check failed: {e}")
+            logger.warning("Server will still start. qBittorrent connection will be retried on webhook events.")
+            print(f"⚠ Warning: Could not connect to qBittorrent at startup")
+            print(f"  Reason: {e}")
+            print(f"  Troubleshooting:")
+            print(f"    - Check if qBittorrent is running")
+            print(f"    - Verify QB_URL setting: {cfg['QB_URL']}")
+            print(f"    - Check username/password if required")
+            print(f"  Server will continue starting and retry on webhook events.")
     else:
         msg = "Startup status check skipped: WEBHOOK_URL not set."
         logger.warning(msg)

@@ -72,9 +72,19 @@ class QBClient:
     def login(self) -> bool:
         if not self.username and not self.password:
             return True
-        url = f"{self.base_url}/api/v2/auth/login"
-        r = self.session.post(url, data={"username": self.username or "", "password": self.password or ""}, timeout=DEFAULT_TIMEOUT)
-        return r.status_code == 200 and r.text != "Fails."
+        try:
+            url = f"{self.base_url}/api/v2/auth/login"
+            r = self.session.post(url, data={"username": self.username or "", "password": self.password or ""}, timeout=DEFAULT_TIMEOUT)
+            return r.status_code == 200 and r.text != "Fails."
+        except requests.exceptions.ConnectionError:
+            logger.error(f"Cannot connect to qBittorrent at {self.base_url}. Is it running?")
+            return False
+        except requests.exceptions.Timeout:
+            logger.error(f"Connection to qBittorrent at {self.base_url} timed out.")
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error connecting to qBittorrent: {e}")
+            return False
 
     def _has_allowed_category(self, raw_category: str) -> bool:
         """Check if torrent category matches any allowed category."""
