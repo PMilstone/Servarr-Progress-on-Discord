@@ -398,14 +398,14 @@ if __name__ == "__main__":
             has_active = run_status_update(cfg)
             if has_active:
                 ensure_active_monitor_running()
-            msg = "✓ Startup status check completed successfully."
+            msg = "Startup status check completed successfully."
             logger.info(msg)
             print_success(msg)
         except Exception as e:
             # Log error but continue - qBittorrent might be offline temporarily
             logger.warning(f"Startup status check failed: {e}")
             logger.warning("Server will still start. qBittorrent connection will be retried on webhook events.")
-            print_warning(f"⚠ Warning: Could not connect to qBittorrent at startup")
+            print_warning(f"WARNING: Could not connect to qBittorrent at startup")
             print_warning(f"  Reason: {e}")
             print_warning(f"  Troubleshooting:")
             print_warning(f"    - Check if qBittorrent is running")

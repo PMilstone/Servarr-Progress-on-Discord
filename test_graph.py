@@ -87,5 +87,5 @@ if __name__ == "__main__":
     print(json.dumps(embed_minimal, indent=2))
     
     print("\n" + "=" * 60)
-    print("✓ All tests completed successfully!")
+    print("All tests completed successfully!")
 

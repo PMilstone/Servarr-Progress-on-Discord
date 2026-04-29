@@ -27,7 +27,7 @@ if __name__ == "__main__":
     print("=" * 70 + "\n")
     
     # Test error (red)
-    print_error("❌ CRITICAL ERROR: Configuration validation failed")
+    print_error("CRITICAL ERROR: Configuration validation failed")
     print_error("    → WEBHOOK_URL is required but not set.")
     print_error("    → Create a .env file in the project root")
     print_error("    → Add: WEBHOOK_URL=https://discord.com/api/webhooks/YOUR_WEBHOOK_URL")
@@ -35,7 +35,7 @@ if __name__ == "__main__":
     print("\n" + "-" * 70 + "\n")
     
     # Test warning (yellow)
-    print_warning("⚠ WARNING: Could not connect to qBittorrent at startup")
+    print_warning("WARNING: Could not connect to qBittorrent at startup")
     print_warning("  → Check if qBittorrent is running")
     print_warning("  → Verify QB_URL setting: http://127.0.0.1:8080")
     print_warning("  → Check username/password if required")
@@ -43,10 +43,10 @@ if __name__ == "__main__":
     print("\n" + "-" * 70 + "\n")
     
     # Test success (green)
-    print_success("✓ Startup status check completed successfully.")
-    print_success("✓ Discord webhook connection established")
-    print_success("✓ qBittorrent client connected successfully")
+    print_success("Startup status check completed successfully.")
+    print_success("Discord webhook connection established")
+    print_success("qBittorrent client connected successfully")
     
     print("\n" + "=" * 70)
-    print("✓ Color test completed!")
+    print("Color test completed!")
     print("=" * 70 + "\n")
