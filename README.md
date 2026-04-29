@@ -53,3 +53,7 @@ Send a test POST to the webhook:
 ```powershell
 Invoke-WebRequest -Uri http://127.0.0.1:5000/webhook -Method POST -ContentType "application/json" -Body '{"eventType":"Grab"}' -UseBasicParsing
 ```
+
+## License
+This project is released into the public domain under The Unlicense.
+See [LICENSE](LICENSE) for details.
