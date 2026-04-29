@@ -1,6 +1,7 @@
 import requests
 import time
 from typing import Any, Dict, Optional
+from colorama import Fore, Style
 
 def send_embed(webhook_url: str, embed: Dict[str, Any], content: Optional[str] = None, message_id: Optional[str] = None, max_retries: int = 3) -> Optional[str]:
     """
@@ -15,6 +16,9 @@ def send_embed(webhook_url: str, embed: Dict[str, Any], content: Optional[str] =
     
     Returns:
         Message ID if a new message was created, None if editing existing message.
+    
+    Raises:
+        requests.exceptions.RequestException: If sending fails after all retries
     """
     payload: Dict[str, Any] = {"embeds": [embed]}
     if content:
@@ -54,9 +58,58 @@ def send_embed(webhook_url: str, embed: Dict[str, Any], content: Optional[str] =
                     return None
             return None
             
+        except requests.exceptions.ConnectionError as e:
+            if attempt < max_retries - 1:
+                msg = (
+                    f"Cannot connect to Discord (attempt {attempt + 1}/{max_retries})\n"
+                    f"  → Check internet connection\n"
+                    f"  → Verify webhook URL is correct\n"
+                    f"  → Error: {e}"
+                )
+                print(f"{Fore.YELLOW}{msg}{Style.RESET_ALL}")
+                time.sleep(2 ** attempt)  # Exponential backoff
+            else:
+                raise ConnectionError(
+                    f"Failed to connect to Discord after {max_retries} attempts\n"
+                    f"  → Check internet connection\n"
+                    f"  → Verify WEBHOOK_URL is correct and not deleted\n"
+                    f"  → Discord may be experiencing issues: https://discordstatus.com"
+                ) from e
+        except requests.exceptions.Timeout as e:
+            if attempt < max_retries - 1:
+                msg = f"Discord webhook timeout (attempt {attempt + 1}/{max_retries}): {e}"
+                print(f"{Fore.YELLOW}{msg}{Style.RESET_ALL}")
+                time.sleep(2 ** attempt)
+            else:
+                raise TimeoutError(
+                    f"Discord webhook timed out after {max_retries} attempts\n"
+                    f"  → Discord may be slow or experiencing issues\n"
+                    f"  → Check https://discordstatus.com for status"
+                ) from e
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                raise ValueError(
+                    "Discord webhook not found (404)\n"
+                    "  → Webhook may have been deleted\n"
+                    "  → Verify WEBHOOK_URL in .env is correct\n"
+                    "  → Create a new webhook in Discord if needed"
+                ) from e
+            elif e.response.status_code == 401:
+                raise ValueError(
+                    "Discord webhook unauthorized (401)\n"
+                    "  → Webhook URL is invalid or malformed\n"
+                    "  → Check WEBHOOK_URL format in .env"
+                ) from e
+            elif attempt < max_retries - 1:
+                msg = f"Discord webhook HTTP error (attempt {attempt + 1}/{max_retries}): {e}"
+                print(f"{Fore.YELLOW}{msg}{Style.RESET_ALL}")
+                time.sleep(2 ** attempt)
+            else:
+                raise
         except requests.exceptions.RequestException as e:
             if attempt < max_retries - 1:
-                print(f"Discord webhook error (attempt {attempt + 1}/{max_retries}): {e}")
+                msg = f"Discord webhook error (attempt {attempt + 1}/{max_retries}): {e}"
+                print(f"{Fore.YELLOW}{msg}{Style.RESET_ALL}")
                 time.sleep(2 ** attempt)  # Exponential backoff
             else:
                 raise

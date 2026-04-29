@@ -16,9 +16,13 @@ from pathlib import Path
 from typing import Optional
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
+from colorama import init as colorama_init, Fore, Style
 from src.qb_client import QBClient
 from src.graph import make_embed
 from src.discord_webhook import send_embed
+
+# Initialize colorama for cross-platform colored console output
+colorama_init(autoreset=True)
 
 # Version Information
 VERSION = "1.1.0"
@@ -37,6 +41,19 @@ logger = logging.getLogger(__name__)
 
 # Suppress Flask development server warning
 logging.getLogger('werkzeug').setLevel(logging.ERROR)
+
+# Console color helpers
+def print_error(msg: str) -> None:
+    """Print error message in red."""
+    print(f"{Fore.RED}{msg}{Style.RESET_ALL}")
+
+def print_warning(msg: str) -> None:
+    """Print warning message in yellow."""
+    print(f"{Fore.YELLOW}{msg}{Style.RESET_ALL}")
+
+def print_success(msg: str) -> None:
+    """Print success message in green."""
+    print(f"{Fore.GREEN}{msg}{Style.RESET_ALL}")
 
 # Constants
 DEFAULT_PORT = 5000
@@ -72,30 +89,68 @@ def validate_config(cfg: dict) -> None:
     """Validate configuration values and raise ConfigError if invalid."""
     errors = []
     
+    # Check for required WEBHOOK_URL
+    webhook_url = cfg.get("WEBHOOK_URL")
+    if not webhook_url:
+        errors.append(
+            "WEBHOOK_URL is required but not set.\n"
+            "    → Create a .env file in the project root\n"
+            "    → Add: WEBHOOK_URL=https://discord.com/api/webhooks/YOUR_WEBHOOK_URL\n"
+            "    → Get webhook URL from Discord: Server Settings → Integrations → Webhooks"
+        )
+    elif not webhook_url.startswith("https://discord.com/api/webhooks/"):
+        errors.append(
+            f"WEBHOOK_URL has invalid format: {webhook_url[:50]}...\n"
+            "    → Must start with 'https://discord.com/api/webhooks/'\n"
+            "    → Example: https://discord.com/api/webhooks/123456789/abcdefg"
+        )
+    
     # Validate PORT
     port = cfg.get("PORT")
     if not isinstance(port, int) or port < 1 or port > 65535:
-        errors.append(f"PORT must be between 1 and 65535, got: {port}")
+        errors.append(
+            f"PORT must be between 1 and 65535, got: {port}\n"
+            "    → Check PORT value in .env file\n"
+            "    → Default is 5000 if not specified"
+        )
     
     # Validate ACTIVE_UPDATE_INTERVAL
     interval = cfg.get("ACTIVE_UPDATE_INTERVAL")
     if not isinstance(interval, int) or interval < 1:
-        errors.append(f"ACTIVE_UPDATE_INTERVAL must be >= 1, got: {interval}")
-    
-    # Validate WEBHOOK_URL format (basic check)
-    webhook_url = cfg.get("WEBHOOK_URL")
-    if webhook_url and not webhook_url.startswith("https://discord.com/api/webhooks/"):
-        errors.append(f"WEBHOOK_URL must start with 'https://discord.com/api/webhooks/', got: {webhook_url[:50]}...")
+        errors.append(
+            f"ACTIVE_UPDATE_INTERVAL must be >= 1 second, got: {interval}\n"
+            "    → Check ACTIVE_UPDATE_INTERVAL value in .env file\n"
+            "    → Recommended: 15 (updates every 15 seconds)"
+        )
     
     # Validate QB_URL format
     qb_url = cfg.get("QB_URL")
     if qb_url and not (qb_url.startswith("http://") or qb_url.startswith("https://")):
-        errors.append(f"QB_URL must start with http:// or https://, got: {qb_url}")
+        errors.append(
+            f"QB_URL has invalid format: {qb_url}\n"
+            "    → Must start with http:// or https://\n"
+            "    → Example: http://127.0.0.1:8080 or http://192.168.1.100:8080"
+        )
     
     if errors:
-        raise ConfigError("Configuration validation failed:\n  - " + "\n  - ".join(errors))
+        raise ConfigError(
+            "\n" + "=" * 70 + "\n"
+            "Configuration Error\n"
+            "=" * 70 + "\n\n"
+            + "\n\n".join(errors) +
+            "\n\n" + "=" * 70 + "\n"
+        )
 
 def load_config():
+    # Check if .env file exists
+    if not Path(".env").exists():
+        logger.warning(
+            "No .env file found. Using environment variables and defaults.\n"
+            "To create .env file:\n"
+            "  1. Copy .env.example to .env\n"
+            "  2. Edit .env with your Discord webhook URL and qBittorrent settings"
+        )
+    
     load_dotenv()
     cfg = {
         "WEBHOOK_URL": os.getenv("WEBHOOK_URL"),
@@ -149,12 +204,29 @@ def run_status_update(cfg: dict) -> bool:
             if not qb.login():
                 qb_url = cfg["QB_URL"]
                 has_creds = bool(cfg.get("QB_USER"))
-                raise RuntimeError(
-                    f"qBittorrent login failed. "
-                    f"URL: {qb_url}, "
-                    f"Credentials provided: {has_creds}. "
-                    f"Check if qBittorrent is running and credentials are correct."
+                error_msg = (
+                    f"\n{'=' * 70}\n"
+                    f"qBittorrent Login Failed\n"
+                    f"{'=' * 70}\n"
+                    f"URL: {qb_url}\n"
+                    f"Credentials provided: {'Yes' if has_creds else 'No'}\n\n"
+                    f"Troubleshooting steps:\n"
+                    f"  1. Check if qBittorrent is running\n"
+                    f"  2. Verify qBittorrent Web UI is accessible at {qb_url}\n"
+                    f"  3. Check if Web UI is enabled: Options → Web UI → Enable\n"
                 )
+                if has_creds:
+                    error_msg += (
+                        f"  4. Verify QB_USER and QB_PASS in .env match Web UI credentials\n"
+                        f"  5. Check if 'Bypass authentication for localhost' is enabled\n"
+                    )
+                else:
+                    error_msg += (
+                        f"  4. If Web UI requires login, add QB_USER and QB_PASS to .env\n"
+                        f"  5. Or enable 'Bypass authentication for localhost' in qBittorrent\n"
+                    )
+                error_msg += f"{'=' * 70}\n"
+                raise RuntimeError(error_msg)
 
             active_torrents = qb.get_active_torrents()
             completed_torrents = qb.get_recent_completed_torrents(5)
@@ -314,7 +386,7 @@ if __name__ == "__main__":
         cfg = load_config()
     except ConfigError as e:
         logger.error(f"Configuration error: {e}")
-        print(f"Configuration error: {e}")
+        print_error(f"Configuration error: {e}")
         exit(1)
     
     msg = f"Starting webhook server on port {cfg['PORT']}"
@@ -328,18 +400,18 @@ if __name__ == "__main__":
                 ensure_active_monitor_running()
             msg = "✓ Startup status check completed successfully."
             logger.info(msg)
-            print(msg)
+            print_success(msg)
         except Exception as e:
             # Log error but continue - qBittorrent might be offline temporarily
             logger.warning(f"Startup status check failed: {e}")
             logger.warning("Server will still start. qBittorrent connection will be retried on webhook events.")
-            print(f"⚠ Warning: Could not connect to qBittorrent at startup")
-            print(f"  Reason: {e}")
-            print(f"  Troubleshooting:")
-            print(f"    - Check if qBittorrent is running")
-            print(f"    - Verify QB_URL setting: {cfg['QB_URL']}")
-            print(f"    - Check username/password if required")
-            print(f"  Server will continue starting and retry on webhook events.")
+            print_warning(f"⚠ Warning: Could not connect to qBittorrent at startup")
+            print_warning(f"  Reason: {e}")
+            print_warning(f"  Troubleshooting:")
+            print_warning(f"    - Check if qBittorrent is running")
+            print_warning(f"    - Verify QB_URL setting: {cfg['QB_URL']}")
+            print_warning(f"    - Check username/password if required")
+            print_warning(f"  Server will continue starting and retry on webhook events.")
     else:
         msg = "Startup status check skipped: WEBHOOK_URL not set."
         logger.warning(msg)

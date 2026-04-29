@@ -3,6 +3,7 @@ import time
 import logging
 from typing import List, Dict, Callable, Any
 from functools import wraps
+from colorama import Fore, Style
 
 logger = logging.getLogger(__name__)
 
@@ -34,13 +35,13 @@ def retry_with_backoff(max_attempts: int = 3, initial_delay: float = 1.0, backof
                     if attempt < max_attempts - 1:
                         msg = f"Attempt {attempt + 1} failed: {e}. Retrying in {delay}s..."
                         logger.warning(msg)
-                        print(msg)
+                        print(f"{Fore.YELLOW}{msg}{Style.RESET_ALL}")
                         time.sleep(delay)
                         delay *= backoff_factor
                     else:
                         msg = f"All {max_attempts} attempts failed."
                         logger.error(msg)
-                        print(msg)
+                        print(f"{Fore.RED}{msg}{Style.RESET_ALL}")
             
             raise last_exception
         return wrapper
@@ -76,11 +77,22 @@ class QBClient:
             url = f"{self.base_url}/api/v2/auth/login"
             r = self.session.post(url, data={"username": self.username or "", "password": self.password or ""}, timeout=DEFAULT_TIMEOUT)
             return r.status_code == 200 and r.text != "Fails."
-        except requests.exceptions.ConnectionError:
-            logger.error(f"Cannot connect to qBittorrent at {self.base_url}. Is it running?")
+        except requests.exceptions.ConnectionError as e:
+            logger.error(
+                f"Cannot connect to qBittorrent at {self.base_url}\n"
+                f"  → Is qBittorrent running?\n"
+                f"  → Is the Web UI enabled? (Options → Web UI)\n"
+                f"  → Check if URL is correct (default: http://127.0.0.1:8080)\n"
+                f"  → Error: {e}"
+            )
             return False
         except requests.exceptions.Timeout:
-            logger.error(f"Connection to qBittorrent at {self.base_url} timed out.")
+            logger.error(
+                f"Connection to qBittorrent at {self.base_url} timed out after {DEFAULT_TIMEOUT}s\n"
+                f"  → qBittorrent may be unresponsive or overloaded\n"
+                f"  → Check if qBittorrent is running and accessible\n"
+                f"  → Try increasing timeout or check network connectivity"
+            )
             return False
         except Exception as e:
             logger.error(f"Unexpected error connecting to qBittorrent: {e}")
@@ -97,10 +109,26 @@ class QBClient:
 
     @retry_with_backoff(max_attempts=3, initial_delay=1.0, backoff_factor=2.0)
     def get_active_torrents(self) -> List[Dict]:
-        url = f"{self.base_url}/api/v2/torrents/info?filter=active"
-        r = self.session.get(url, timeout=DEFAULT_TIMEOUT)
-        r.raise_for_status()
-        items = r.json()
+        try:
+            url = f"{self.base_url}/api/v2/torrents/info?filter=active"
+            r = self.session.get(url, timeout=DEFAULT_TIMEOUT)
+            r.raise_for_status()
+            items = r.json()
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 403:
+                logger.error(
+                    "qBittorrent API returned 403 Forbidden\n"
+                    "  → Session may have expired or authentication failed\n"
+                    "  → Check QB_USER and QB_PASS credentials"
+                )
+            raise
+        except requests.exceptions.JSONDecodeError:
+            logger.error(
+                "Failed to parse qBittorrent API response\n"
+                "  → API may be disabled or returning unexpected format\n"
+                "  → Check qBittorrent Web UI settings"
+            )
+            raise
         torrents = []
         for t in items:
             if not self._has_allowed_category(t.get("category", "")):
