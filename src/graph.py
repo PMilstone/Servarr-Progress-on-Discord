@@ -184,27 +184,17 @@ def make_embed(active_torrents: List[Dict], completed_torrents: List[Dict], opti
                 "inline": False,
             })
     
-    # Use Discord's native timestamp field for automatic relative time formatting
-    current_time = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    
-    if not fields:
-        return {
-            "title": "Download Progress",
-            "description": "No downloads found.",
-            "color": 3447003,
-            "footer": {
-                "text": "⬇️⬇️⬇️ Last updated ⬇️⬇️⬇️"
-            },
-            "timestamp": current_time
-        }
+    # Add Last Updated field with Discord timestamp markdown for relative time
+    timestamp_unix = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
+    fields.append({
+        "name": "⬇️ Last Updated ⬇️",
+        "value": f"<t:{timestamp_unix}:R>",
+        "inline": False
+    })
 
     return {
         "title": "Download Progress",
         "description": "",
         "color": 3447003,
         "fields": fields,
-        "footer": {
-            "text": "⬇️⬇️⬇️ Last updated ⬇️⬇️⬇️"
-        },
-        "timestamp": current_time
     }
