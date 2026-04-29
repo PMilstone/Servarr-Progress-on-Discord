@@ -15,7 +15,8 @@ def send_embed(webhook_url: str, embed: Dict[str, Any], content: Optional[str] =
         max_retries: Maximum number of retry attempts
     
     Returns:
-        Message ID if a new message was created, None if editing existing message.
+        Message ID if successful (new message ID for creates, same ID for edits).
+        None if the operation failed.
     
     Raises:
         requests.exceptions.RequestException: If sending fails after all retries
@@ -50,8 +51,9 @@ def send_embed(webhook_url: str, embed: Dict[str, Any], content: Optional[str] =
             
             r.raise_for_status()
             
-            # Return message ID for new messages
+            # Return message ID
             if not message_id:
+                # For new messages, extract ID from response
                 try:
                     response_data = r.json()
                     message_id_from_response = response_data.get("id")
@@ -65,7 +67,9 @@ def send_embed(webhook_url: str, embed: Dict[str, Any], content: Optional[str] =
                     print(f"  Response text preview: {r.text[:200]}")
                     print(f"  Error: {json_err}")
                     return None
-            return None
+            else:
+                # For edited messages, return the message_id we used (indicates success)
+                return message_id
             
         except requests.exceptions.ConnectionError as e:
             if attempt < max_retries - 1:
