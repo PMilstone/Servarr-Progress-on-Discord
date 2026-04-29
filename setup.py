@@ -147,7 +147,8 @@ def show_embed_preview(embed_settings):
     for field in embed['fields']:
         print(f"{Colors.BOLD}{field['name']}{Colors.END}")
         # Clean up Discord timestamp format and emoji for display
-        value = field['value'].replace('<t:', 'TIMESTAMP:').replace(':R>', '')
+        # Show that these will appear as relative times in Discord (e.g., "2 hours ago")
+        value = field['value'].replace('<t:', '[').replace(':R>', ' - relative time]')
         print(f"  {value}")
         print()
     

@@ -6,6 +6,7 @@ A production-ready webhook server that displays qBittorrent download progress in
 
 - **Live Progress Updates** - Real-time Discord embed with colorful progress bars for active downloads
 - **Smart Title Formatting** - Automatically cleans up torrent names and extracts release years
+- **Relative Timestamps** - Completion times and last update show as "2 hours ago" using Discord's native formatting
 - **Configurable Display** - Toggle download/upload speeds, ETA, timestamps, and activity duration
 - **Category Filtering** - Optionally filter torrents by qBittorrent categories
 - **Message Persistence** - Automatically edits the same Discord message instead of spamming

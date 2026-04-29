@@ -151,9 +151,10 @@ def make_embed(active_torrents: List[Dict], completed_torrents: List[Dict], opti
         completed_list = []
         for t in completed_torrents:
             name = _format_title(t["name"])
-            completion_time = datetime.datetime.fromtimestamp(t["completion_on"])
+            # Use Discord's relative timestamp format (shows as "2 hours ago", etc.)
+            completion_unix = int(t["completion_on"])
             completed_list.append(
-                f"✅ {name} - {_format_datetime_12h(completion_time)}"
+                f"✅ {name} - <t:{completion_unix}:R>"
             )
         
         if completed_list:
