@@ -29,8 +29,9 @@ def send_embed(webhook_url: str, embed: Dict[str, Any], content: Optional[str] =
         url = f"{webhook_url}/messages/{message_id}"
         method = "PATCH"
     else:
-        # Send new message
-        url = webhook_url
+        # Send new message with ?wait=true to get message data back
+        separator = "&" if "?" in webhook_url else "?"
+        url = f"{webhook_url}{separator}wait=true"
         method = "POST"
     
     for attempt in range(max_retries):
@@ -52,9 +53,17 @@ def send_embed(webhook_url: str, embed: Dict[str, Any], content: Optional[str] =
             # Return message ID for new messages
             if not message_id:
                 try:
-                    return r.json().get("id")
-                except requests.exceptions.JSONDecodeError:
-                    print(f"Warning: Could not parse response JSON. Response: {r.text}")
+                    response_data = r.json()
+                    message_id_from_response = response_data.get("id")
+                    if not message_id_from_response:
+                        print(f"Warning: Response JSON did not contain 'id' field. Keys: {list(response_data.keys())}")
+                        return None
+                    return message_id_from_response
+                except requests.exceptions.JSONDecodeError as json_err:
+                    print(f"Warning: Could not parse response JSON.")
+                    print(f"  Status code: {r.status_code}")
+                    print(f"  Response text preview: {r.text[:200]}")
+                    print(f"  Error: {json_err}")
                     return None
             return None
             
