@@ -8,6 +8,7 @@ import os
 import sys
 from pathlib import Path
 from src.graph import make_embed
+from src.discord_webhook import send_embed
 import json
 
 # ANSI color codes for cross-platform colored output
@@ -154,6 +155,63 @@ def show_embed_preview(embed_settings):
     
     print(Colors.BOLD + Colors.GREEN + "=" * 70 + Colors.END + "\n")
 
+def send_test_message_to_discord(webhook_url, embed_settings, message_content=None):
+    """
+    Send a test message to Discord and return the message ID.
+    
+    Returns:
+        Message ID if successful, None if failed
+    """
+    print("\n" + Colors.BOLD + "Sending test message to Discord..." + Colors.END)
+    
+    # Create mock test data
+    mock_active = [{
+        "name": "Ubuntu.22.04.3.LTS.Desktop.amd64.iso",
+        "progress": 0.65,
+        "dlspeed": 5500000,
+        "ulspeed": 125000,
+        "eta": 450,
+        "added_on": 1714000000,
+        "time_active": 300,
+        "size": 3500000000,
+        "state": "downloading"
+    }]
+    
+    mock_completed = [{
+        "name": "Fedora.Workstation.39.x86_64.iso",
+        "completion_on": 1714350000,
+        "size": 2100000000
+    }]
+    
+    # Convert settings to options format
+    options = {
+        "show_download_speed": embed_settings["EMBED_SHOW_DOWNLOAD_SPEED"],
+        "show_upload_speed": embed_settings["EMBED_SHOW_UPLOAD_SPEED"],
+        "show_eta": embed_settings["EMBED_SHOW_ETA"],
+        "show_time_added": embed_settings["EMBED_SHOW_TIME_ADDED"],
+        "show_time_since_started": embed_settings["EMBED_SHOW_TIME_SINCE_STARTED"],
+    }
+    
+    # Generate embed with test mode indicator
+    embed = make_embed(mock_active, mock_completed, options, is_test_mode=True)
+    
+    try:
+        # Send to Discord and capture message ID
+        message_id = send_embed(webhook_url, embed, message_content, message_id=None)
+        
+        if message_id:
+            print_success(f"Test message sent successfully!")
+            print(f"\n{Colors.BOLD}Message ID:{Colors.END} {message_id}")
+            print(f"{Colors.BOLD}Check your Discord channel to see the live embed!{Colors.END}\n")
+            return message_id
+        else:
+            print_error("Failed to get message ID from Discord response")
+            return None
+            
+    except Exception as e:
+        print_error(f"Failed to send test message: {e}")
+        return None
+
 def main():
     print_header("qBittorrent Discord Webhook Service - Setup Wizard")
     
@@ -209,11 +267,6 @@ def main():
     print_header("Step 4: Optional Settings")
     config["MESSAGE"] = prompt_input("Optional message to send with embeds", default="Download status update", required=False)
     
-    print("\nMessage ID (advanced):")
-    print("  Leave blank to create new messages each time.")
-    print("  Provide a Discord message ID to edit the same message instead.\n")
-    config["MESSAGE_ID"] = prompt_input("Discord Message ID (optional)", required=False)
-    
     print("\nCategory Filter (optional):")
     print("  Leave blank to show ALL torrents.")
     print("  Or enter comma-separated category substrings to filter (e.g., 'tv-arr,movies-arr')\n")
@@ -232,6 +285,38 @@ def main():
             break
         
         print("\nLet's adjust the embed settings...\n")
+    
+    # Send test message to Discord and capture message ID
+    print_header("Step 6: Discord Test Message")
+    
+    print("The setup wizard can send a test message to your Discord channel.")
+    print("This will:")
+    print("  • Validate your webhook URL works")
+    print("  • Show you the actual live Discord embed")
+    print("  • Automatically capture the message ID for editing")
+    print(f"  • The service will edit this message instead of creating new ones\n")
+    
+    config["MESSAGE_ID"] = ""  # Default to empty
+    
+    if prompt_yes_no("Send a test message to Discord now?", default=True):
+        message_id = send_test_message_to_discord(
+            config['WEBHOOK_URL'],
+            embed_settings,
+            config.get('MESSAGE')
+        )
+        
+        if message_id:
+            print_success("Message ID captured! The service will edit this message on future updates.")
+            config["MESSAGE_ID"] = message_id
+        else:
+            print_warning("Could not capture message ID. The service will create a new message on first run.")
+            if prompt_yes_no("Continue anyway?", default=True):
+                pass
+            else:
+                print("\nSetup cancelled.")
+                return
+    else:
+        print("\nSkipping test message. The service will create a new message on first run.")
     
     # Write .env file
     print_header("Writing Configuration")
@@ -263,8 +348,8 @@ def main():
             f.write("# Optional message content to send with each embed\n")
             f.write(f"MESSAGE={config['MESSAGE']}\n\n")
         
-        if config['MESSAGE_ID']:
-            f.write("# Optional message ID to edit instead of sending new\n")
+        if config.get('MESSAGE_ID'):
+            f.write("# Discord message ID (captured during setup - this message will be edited)\n")
             f.write(f"MESSAGE_ID={config['MESSAGE_ID']}\n\n")
         
         f.write("# Embed display toggles (true/false)\n")
@@ -281,6 +366,11 @@ def main():
     print_success(f"Configuration saved to {env_path.absolute()}")
     
     print_header("Setup Complete!")
+    
+    if config.get('MESSAGE_ID'):
+        print_success("A test message was created in your Discord channel.")
+        print(f"The service will automatically edit that message with live updates.\n")
+    
     print("You can now start the service with:")
     print(f"  {Colors.BOLD}python main.py{Colors.END}\n")
     print("Or test with mock data:")
