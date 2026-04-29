@@ -10,6 +10,8 @@ import time
 import logging
 import json
 import datetime
+import signal
+import sys
 from pathlib import Path
 from typing import Optional
 from flask import Flask, request, jsonify
@@ -48,10 +50,17 @@ _active_monitor_thread = None
 _active_monitor_lock = threading.Lock()
 _last_update_time = None
 _last_update_status = None
+_shutdown_flag = threading.Event()
 
 class ConfigError(Exception):
     """Raised when configuration is invalid."""
     pass
+
+def signal_handler(sig, frame):
+    """Handle graceful shutdown on SIGINT or SIGTERM."""
+    logger.info(f"Received signal {sig}, initiating graceful shutdown...")
+    _shutdown_flag.set()
+    sys.exit(0)
 
 def _env_bool(name: str, default: bool = True) -> bool:
     value = os.getenv(name)
@@ -179,7 +188,7 @@ def _monitor_active_downloads() -> None:
     # Load config once at thread start
     cfg = load_config()
     
-    while True:
+    while not _shutdown_flag.is_set():
         if not cfg.get("WEBHOOK_URL"):
             logger.info("Monitor stopping: WEBHOOK_URL not configured")
             break
@@ -197,7 +206,8 @@ def _monitor_active_downloads() -> None:
             break
 
         interval = max(MIN_UPDATE_INTERVAL, int(cfg.get("ACTIVE_UPDATE_INTERVAL", DEFAULT_UPDATE_INTERVAL)))
-        time.sleep(interval)
+        # Use wait instead of sleep so we can be interrupted by shutdown flag
+        _shutdown_flag.wait(timeout=interval)
 
 def ensure_active_monitor_running() -> None:
     global _active_monitor_thread
@@ -275,6 +285,10 @@ def webhook():
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
+    # Register signal handlers for graceful shutdown
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    
     # Display version information
     print("=" * 60)
     print(f"qBittorrent Discord Webhook Service")
