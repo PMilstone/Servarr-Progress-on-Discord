@@ -47,11 +47,13 @@ def retry_with_backoff(max_attempts: int = 3, initial_delay: float = 1.0, backof
     return decorator
 
 class QBClient:
-    def __init__(self, base_url: str = "http://127.0.0.1:8080", username: str | None = None, password: str | None = None):
+    def __init__(self, base_url: str = "http://127.0.0.1:8080", username: str | None = None, password: str | None = None, allowed_categories: list[str] | None = None):
         self.base_url = base_url.rstrip('/')
         self.username = username
         self.password = password
         self.session = requests.Session()
+        # None means no filtering (show all torrents)
+        self.allowed_categories = [cat.lower() for cat in allowed_categories] if allowed_categories else None
 
     def __enter__(self):
         """Context manager entry."""
@@ -74,10 +76,14 @@ class QBClient:
         r = self.session.post(url, data={"username": self.username or "", "password": self.password or ""}, timeout=DEFAULT_TIMEOUT)
         return r.status_code == 200 and r.text != "Fails."
 
-    @staticmethod
-    def _has_allowed_category(raw_category: str) -> bool:
+    def _has_allowed_category(self, raw_category: str) -> bool:
+        """Check if torrent category matches any allowed category."""
+        # If no categories specified, allow all torrents
+        if self.allowed_categories is None:
+            return True
+        
         category_text = (raw_category or "").lower()
-        return "tv-arr" in category_text or "movies-arr" in category_text
+        return any(allowed_cat in category_text for allowed_cat in self.allowed_categories)
 
     @retry_with_backoff(max_attempts=3, initial_delay=1.0, backoff_factor=2.0)
     def get_active_torrents(self) -> List[Dict]:

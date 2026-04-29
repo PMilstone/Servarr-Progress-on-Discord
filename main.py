@@ -104,6 +104,7 @@ def load_config():
         "QB_URL": os.getenv("QB_URL", DEFAULT_QB_URL),
         "QB_USER": os.getenv("QB_USER"),
         "QB_PASS": os.getenv("QB_PASS"),
+        "QB_CATEGORIES": os.getenv("QB_CATEGORIES"),  # None by default means no filtering
         "MESSAGE": os.getenv("MESSAGE"),
         "MESSAGE_ID": os.getenv("MESSAGE_ID"),
         "EMBED_SHOW_DOWNLOAD_SPEED": _env_bool("EMBED_SHOW_DOWNLOAD_SPEED", True),
@@ -139,7 +140,12 @@ def run_status_update(cfg: dict) -> bool:
     global _last_update_time, _last_update_status
     
     try:
-        with QBClient(cfg["QB_URL"], cfg.get("QB_USER"), cfg.get("QB_PASS")) as qb:
+        # Parse categories from config (None means no filtering)
+        categories = None
+        if cfg.get("QB_CATEGORIES"):
+            categories = [cat.strip() for cat in cfg["QB_CATEGORIES"].split(",")]
+        
+        with QBClient(cfg["QB_URL"], cfg.get("QB_USER"), cfg.get("QB_PASS"), categories) as qb:
             if not qb.login():
                 raise RuntimeError("qBittorrent login failed")
 

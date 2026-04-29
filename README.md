@@ -27,6 +27,7 @@ python main.py
   - `PORT`: Port for the webhook server (default 5000)
   - `ACTIVE_UPDATE_INTERVAL`: Poll interval (seconds) while active downloads exist
   - `QB_URL`, `QB_USER`, `QB_PASS`: qBittorrent settings
+  - `QB_CATEGORIES`: Comma-separated category filters (optional, shows all if not set)
   - `MESSAGE_ID`: Optional, message ID to edit instead of sending new
   - `MESSAGE`: Optional, text to include with the embed
   - `EMBED_SHOW_DOWNLOAD_SPEED`: Show download speed in active torrent rows
@@ -38,8 +39,8 @@ python main.py
 ## How it works
 - The server listens for POST requests to `/webhook` from Sonarr/Radarr.
 - It triggers on "Grab" (download started) or "Download" (completed) events.
-- Checks for active torrents tagged "tv-arr" or "movies-arr".
-- Shows the most recent 5 completed downloads with the same tags.
+- Shows all active torrents by default, or only those matching QB_CATEGORIES if set.
+- Displays the most recent 5 completed downloads (filtered by categories if configured).
 - If `MESSAGE_ID` is set, edits that message; otherwise, sends a new embed.
 
 ## Sonarr/Radarr Setup
