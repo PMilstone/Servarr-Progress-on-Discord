@@ -120,14 +120,17 @@ def create_arr_webhook(app_name, base_url, api_key, webhook_server_url):
         "implementation": "Webhook",
         "configContract": "WebhookSettings",
         "fields": [
-            {"name": "url", "value": webhook_server_url},
-            {"name": "method", "value": 1}  # 1 = POST
+            {"order": 0, "name": "url", "value": webhook_server_url},
+            {"order": 1, "name": "method", "value": 1}  # 1 = POST
         ],
         "tags": [],
         "onGrab": True,
         "onHealthIssue": False,
         "onApplicationUpdate": False,
-        "includeHealthWarnings": False
+        "includeHealthWarnings": False,
+        "supportsOnGrab": True,
+        "supportsOnHealthIssue": True,
+        "supportsOnApplicationUpdate": True
     }
     
     # Add app-specific triggers
@@ -135,10 +138,23 @@ def create_arr_webhook(app_name, base_url, api_key, webhook_server_url):
         webhook_config["onImportComplete"] = True
         webhook_config["onSeriesDelete"] = False
         webhook_config["onEpisodeFileDelete"] = False
+        webhook_config["onEpisodeFileDeleteForUpgrade"] = False
+        webhook_config["onSeriesAdd"] = False
+        webhook_config["supportsOnImportComplete"] = True
+        webhook_config["supportsOnSeriesDelete"] = True
+        webhook_config["supportsOnEpisodeFileDelete"] = True
+        webhook_config["supportsOnEpisodeFileDeleteForUpgrade"] = True
     else:  # Radarr
         webhook_config["onDownload"] = True
         webhook_config["onMovieDelete"] = False
         webhook_config["onMovieFileDelete"] = False
+        webhook_config["onMovieFileDeleteForUpgrade"] = False
+        webhook_config["onMovieAdded"] = False
+        webhook_config["supportsOnDownload"] = True
+        webhook_config["supportsOnMovieDelete"] = True
+        webhook_config["supportsOnMovieFileDelete"] = True
+        webhook_config["supportsOnMovieFileDeleteForUpgrade"] = True
+        webhook_config["supportsOnMovieAdded"] = True
     
     try:
         response = requests.post(
@@ -159,9 +175,12 @@ def create_arr_webhook(app_name, base_url, api_key, webhook_server_url):
             if "already exists" in error_msg or "duplicate" in error_msg:
                 print_warning(f"{app_name} webhook may already exist")
                 return True
+            print_error(f"{app_name} API returned 400 Bad Request")
+            print_error(f"Response: {response.text[:500]}")
             return False
         else:
             print_error(f"{app_name} API returned status {response.status_code}")
+            print_error(f"Response: {response.text[:500]}")
             return False
             
     except requests.exceptions.RequestException as e:
