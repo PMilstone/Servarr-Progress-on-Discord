@@ -37,27 +37,35 @@ if errorlevel 1 (
     echo.
     set /p "CHOICE=Do you want to DISABLE autostart? (Y/N): "
     
-    if /i "%CHOICE%"=="Y" (
-        echo.
-        echo Removing startup shortcut...
-        
-        "%POWERSHELL%" -Command "$WShell = New-Object -ComObject WScript.Shell; $Startup = $WShell.SpecialFolders('Startup'); Remove-Item ($Startup + '\\Servarr-Progress-on-Discord.lnk')"
-        
-        if errorlevel 1 (
-            echo Error: Failed to remove shortcut
-            pause
-            exit /b 1
-        )
-        
-        echo.
-        echo Success! Autostart is now DISABLED.
-        echo The service will no longer start automatically on login.
-        echo.
-    ) else (
-        echo.
-        echo No changes made. Autostart remains ENABLED.
-        echo.
+    REM Trim spaces and convert to uppercase for comparison
+    for /f "tokens=* delims= " %%a in ("%CHOICE%") do set "CHOICE=%%a"
+    
+    if /i "%CHOICE%"=="Y" goto DISABLE
+    if /i "%CHOICE%"=="YES" goto DISABLE
+    
+    echo.
+    echo No changes made. Autostart remains ENABLED.
+    echo.
+    goto END
+    
+    :DISABLE
+    echo.
+    echo Removing startup shortcut...
+    
+    "%POWERSHELL%" -Command "$WShell = New-Object -ComObject WScript.Shell; $Startup = $WShell.SpecialFolders('Startup'); Remove-Item ($Startup + '\\Servarr-Progress-on-Discord.lnk')"
+    
+    if errorlevel 1 (
+        echo Error: Failed to remove shortcut
+        pause
+        exit /b 1
     )
+    
+    echo.
+    echo Success! Autostart is now DISABLED.
+    echo The service will no longer start automatically on login.
+    echo.
+    
+    :END
 )
 
 pause
