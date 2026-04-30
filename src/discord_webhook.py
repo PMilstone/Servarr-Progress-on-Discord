@@ -1,7 +1,10 @@
 import requests
 import time
 from typing import Any, Dict, Optional
-from colorama import Fore, Style
+
+# ANSI color codes
+YELLOW = '\033[93m'
+RESET = '\033[0m'
 
 def send_embed(webhook_url: str, embed: Dict[str, Any], content: Optional[str] = None, message_id: Optional[str] = None, max_retries: int = 3) -> Optional[str]:
     """
@@ -79,7 +82,7 @@ def send_embed(webhook_url: str, embed: Dict[str, Any], content: Optional[str] =
                     f"  → Verify webhook URL is correct\n"
                     f"  → Error: {e}"
                 )
-                print(f"{Fore.YELLOW}{msg}{Style.RESET_ALL}")
+                print(f"{YELLOW}{msg}{RESET}")
                 time.sleep(2 ** attempt)  # Exponential backoff
             else:
                 raise ConnectionError(
@@ -91,7 +94,7 @@ def send_embed(webhook_url: str, embed: Dict[str, Any], content: Optional[str] =
         except requests.exceptions.Timeout as e:
             if attempt < max_retries - 1:
                 msg = f"Discord webhook timeout (attempt {attempt + 1}/{max_retries}): {e}"
-                print(f"{Fore.YELLOW}{msg}{Style.RESET_ALL}")
+                print(f"{YELLOW}{msg}{RESET}")
                 time.sleep(2 ** attempt)
             else:
                 raise TimeoutError(
@@ -115,14 +118,14 @@ def send_embed(webhook_url: str, embed: Dict[str, Any], content: Optional[str] =
                 ) from e
             elif attempt < max_retries - 1:
                 msg = f"Discord webhook HTTP error (attempt {attempt + 1}/{max_retries}): {e}"
-                print(f"{Fore.YELLOW}{msg}{Style.RESET_ALL}")
+                print(f"{YELLOW}{msg}{RESET}")
                 time.sleep(2 ** attempt)
             else:
                 raise
         except requests.exceptions.RequestException as e:
             if attempt < max_retries - 1:
                 msg = f"Discord webhook error (attempt {attempt + 1}/{max_retries}): {e}"
-                print(f"{Fore.YELLOW}{msg}{Style.RESET_ALL}")
+                print(f"{YELLOW}{msg}{RESET}")
                 time.sleep(2 ** attempt)  # Exponential backoff
             else:
                 raise

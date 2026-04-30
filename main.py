@@ -18,13 +18,9 @@ from pathlib import Path
 from typing import Optional
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
-from colorama import init as colorama_init, Fore, Style
 from src.qb_client import QBClient
 from src.graph import make_embed
 from src.discord_webhook import send_embed
-
-# Initialize colorama for cross-platform colored console output
-colorama_init(autoreset=True)
 
 # Version Information
 VERSION = "1.2.0"
@@ -148,18 +144,24 @@ logger = logging.getLogger(__name__)
 # Suppress Flask development server warning
 logging.getLogger('werkzeug').setLevel(logging.ERROR)
 
+# ANSI color codes
+RED = '\033[91m'
+YELLOW = '\033[93m'
+GREEN = '\033[92m'
+RESET = '\033[0m'
+
 # Console color helpers
 def print_error(msg: str) -> None:
     """Print error message in red."""
-    print(f"{Fore.RED}{msg}{Style.RESET_ALL}")
+    print(f"{RED}{msg}{RESET}")
 
 def print_warning(msg: str) -> None:
     """Print warning message in yellow."""
-    print(f"{Fore.YELLOW}{msg}{Style.RESET_ALL}")
+    print(f"{YELLOW}{msg}{RESET}")
 
 def print_success(msg: str) -> None:
     """Print success message in green."""
-    print(f"{Fore.GREEN}{msg}{Style.RESET_ALL}")
+    print(f"{GREEN}{msg}{RESET}")
 
 app = Flask(__name__)
 _active_monitor_thread = None

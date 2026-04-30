@@ -3,9 +3,13 @@ import time
 import logging
 from typing import List, Dict, Callable, Any
 from functools import wraps
-from colorama import Fore, Style
 
 logger = logging.getLogger(__name__)
+
+# ANSI color codes
+RED = '\033[91m'
+YELLOW = '\033[93m'
+RESET = '\033[0m'
 
 # Constants
 DEFAULT_TIMEOUT = 30  # seconds
@@ -35,13 +39,13 @@ def retry_with_backoff(max_attempts: int = 3, initial_delay: float = 1.0, backof
                     if attempt < max_attempts - 1:
                         msg = f"Attempt {attempt + 1} failed: {e}. Retrying in {delay}s..."
                         logger.warning(msg)
-                        print(f"{Fore.YELLOW}{msg}{Style.RESET_ALL}")
+                        print(f"{YELLOW}{msg}{RESET}")
                         time.sleep(delay)
                         delay *= backoff_factor
                     else:
                         msg = f"All {max_attempts} attempts failed."
                         logger.error(msg)
-                        print(f"{Fore.RED}{msg}{Style.RESET_ALL}")
+                        print(f"{RED}{msg}{RESET}")
             
             raise last_exception
         return wrapper
