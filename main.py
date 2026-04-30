@@ -1,7 +1,7 @@
 """
 qBittorrent Discord Webhook Service
-Version: 1.2.0
-Build: 2026-04-29 12:34 PM EST
+Version: 1.2.1
+Build: 2026-04-30 1:30 PM EST
 """
 
 import os
@@ -9,13 +9,11 @@ import threading
 import time
 import logging
 from logging.handlers import RotatingFileHandler
-import json
 import datetime
 import signal
 import sys
 import argparse
 from pathlib import Path
-from typing import Optional
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 from src.qb_client import QBClient
@@ -23,52 +21,8 @@ from src.graph import make_embed
 from src.discord_webhook import send_embed
 
 # Version Information
-VERSION = "1.2.0"
-BUILD_DATE = "2026-04-29 12:34 PM EST"
-
-# Mock test data for --test mode
-MOCK_ACTIVE_TORRENTS = [
-    {
-        "name": "Ubuntu.22.04.3.LTS.Desktop.amd64.iso",
-        "progress": 0.65,
-        "dlspeed": 5500000,  # 5.5 MB/s
-        "ulspeed": 125000,   # 125 kB/s
-        "eta": 450,          # 7.5 minutes
-        "added_on": 1714000000,
-        "time_active": 300,  # 5 minutes
-        "size": 3500000000,
-        "state": "downloading"
-    },
-    {
-        "name": "Debian.12.5.0.amd64.netinst.iso",
-        "progress": 0.92,
-        "dlspeed": 2300000,  # 2.3 MB/s
-        "ulspeed": 50000,    # 50 kB/s
-        "eta": 120,          # 2 minutes
-        "added_on": 1713990000,
-        "time_active": 1800, # 30 minutes
-        "size": 650000000,
-        "state": "downloading"
-    }
-]
-
-MOCK_COMPLETED_TORRENTS = [
-    {
-        "name": "Fedora.Workstation.39.x86_64.iso",
-        "completion_on": 1714350000,
-        "size": 2100000000
-    },
-    {
-        "name": "Arch.Linux.2024.04.01.x86_64.iso",
-        "completion_on": 1714340000,
-        "size": 850000000
-    },
-    {
-        "name": "Linux.Mint.21.3.Cinnamon.64bit.iso",
-        "completion_on": 1714330000,
-        "size": 2800000000
-    }
-]
+VERSION = "1.2.1"
+BUILD_DATE = "2026-04-30 1:30 PM EST"
 
 # Mock test data for --test mode
 MOCK_ACTIVE_TORRENTS = [
@@ -213,7 +167,7 @@ def validate_config(cfg: dict) -> None:
         errors.append(
             f"PORT must be between 1 and 65535, got: {port}\n"
             "    → Check PORT value in .env file\n"
-            "    → Default is 5000 if not specified"
+            "    → Default is 8383 if not specified"
         )
     
     # Validate ACTIVE_UPDATE_INTERVAL

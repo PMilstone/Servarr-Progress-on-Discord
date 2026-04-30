@@ -9,9 +9,7 @@ import sys
 from pathlib import Path
 from src.graph import make_embed
 from src.discord_webhook import send_embed
-import json
 import requests
-import subprocess
 
 # ANSI color codes for cross-platform colored output
 class Colors:
@@ -545,7 +543,7 @@ def main():
         f.write("# Discord webhook URL (required)\n")
         f.write(f"WEBHOOK_URL={config['WEBHOOK_URL']}\n\n")
         
-        f.write("# Port for the webhook server (default 5000)\n")
+        f.write("# Port for the webhook server (default 8383)\n")
         f.write(f"PORT={config['PORT']}\n\n")
         
         f.write("# Poll interval in seconds while active downloads exist\n")
