@@ -6,6 +6,7 @@ Walks through .env configuration with preview of embed display settings.
 
 import os
 import sys
+import subprocess
 from pathlib import Path
 from src.graph import make_embed
 from src.discord_webhook import send_embed
@@ -626,6 +627,42 @@ def main():
         print(f"The service will automatically edit that message with live updates.\n")
     
     print(f"{Colors.BOLD}Configuration is complete!{Colors.END}\n")
+    
+    # Ask if user wants to enable autostart
+    if prompt_yes_no("Would you like the service to start automatically on login?", default=True):
+        print_header("Configuring Autostart")
+        print("Creating startup shortcut...\n")
+        
+        try:
+            script_dir = Path(__file__).parent.absolute()
+            bat_file = script_dir / "Servarr-Progress-on-Discord.bat"
+            
+            # PowerShell command to create shortcut
+            ps_command = f"""
+                $WShell = New-Object -ComObject WScript.Shell;
+                $Startup = $WShell.SpecialFolders('Startup');
+                $Shortcut = $WShell.CreateShortcut($Startup + '\\Servarr-Progress-on-Discord.lnk');
+                $Shortcut.TargetPath = '{bat_file}';
+                $Shortcut.WorkingDirectory = '{script_dir}';
+                $Shortcut.WindowStyle = 7;
+                $Shortcut.Save()
+            """
+            
+            result = subprocess.run(
+                ["powershell", "-Command", ps_command],
+                capture_output=True,
+                text=True
+            )
+            
+            if result.returncode == 0:
+                print_success("Autostart enabled! Service will start on login.")
+                print(f"  You can disable this later using {Colors.BOLD}toggle-autostart.bat{Colors.END}\n")
+            else:
+                print_warning("Could not create autostart shortcut.")
+                print(f"  You can manually run {Colors.BOLD}toggle-autostart.bat{Colors.END} to enable it.\n")
+        except Exception as e:
+            print_warning(f"Could not configure autostart: {e}")
+            print(f"  You can manually run {Colors.BOLD}toggle-autostart.bat{Colors.END} to enable it.\n")
     
     # Ask if user wants to start the service now
     if prompt_yes_no("Would you like to start the service now?", default=True):
