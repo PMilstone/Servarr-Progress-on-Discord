@@ -319,11 +319,11 @@ def run_status_update(cfg: dict, use_test_data: bool = False) -> bool:
                 completed_torrents = qb.get_recent_completed_torrents(5)
 
         embed_options = {
-            "show_download_speed": cfg.get("EMBED_SHOW_DOWNLOAD_SPEED", True),
-            "show_upload_speed": cfg.get("EMBED_SHOW_UPLOAD_SPEED", True),
+            "show_download_speed": cfg.get("EMBED_SHOW_DOWNLOAD_SPEED", False),
+            "show_upload_speed": cfg.get("EMBED_SHOW_UPLOAD_SPEED", False),
             "show_eta": cfg.get("EMBED_SHOW_ETA", True),
-            "show_time_added": cfg.get("EMBED_SHOW_TIME_ADDED", True),
-            "show_time_since_started": cfg.get("EMBED_SHOW_TIME_SINCE_STARTED", True),
+            "show_time_added": cfg.get("EMBED_SHOW_TIME_ADDED", False),
+            "show_time_since_started": cfg.get("EMBED_SHOW_TIME_SINCE_STARTED", False),
         }
         embed = make_embed(active_torrents, completed_torrents, embed_options, is_test_mode=use_test_data)
         
