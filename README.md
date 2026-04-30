@@ -64,7 +64,7 @@ The setup wizard can automatically create webhooks in Sonarr and Radarr. You'll 
 
 Or manually create webhooks:
 1. Go to Settings → Connect in Sonarr/Radarr
-2. Add Webhook with URL: `http://your-server-ip:5000/webhook`
+2. Add Webhook with URL: `http://your-server-ip:8383/webhook`
 3. Enable triggers: On Grab, On Download/Import Complete
 
 ## License
