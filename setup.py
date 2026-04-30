@@ -176,11 +176,11 @@ def get_embed_settings():
     print("Configure what information to show in the Discord embed:\n")
     
     settings = {
-        "EMBED_SHOW_DOWNLOAD_SPEED": prompt_yes_no("Show download speed?", default=True),
-        "EMBED_SHOW_UPLOAD_SPEED": prompt_yes_no("Show upload speed?", default=True),
+        "EMBED_SHOW_DOWNLOAD_SPEED": prompt_yes_no("Show download speed?", default=False),
+        "EMBED_SHOW_UPLOAD_SPEED": prompt_yes_no("Show upload speed?", default=False),
         "EMBED_SHOW_ETA": prompt_yes_no("Show estimated time remaining (ETA)?", default=True),
-        "EMBED_SHOW_TIME_ADDED": prompt_yes_no("Show when torrent was added?", default=True),
-        "EMBED_SHOW_TIME_SINCE_STARTED": prompt_yes_no("Show how long torrent has been active?", default=True),
+        "EMBED_SHOW_TIME_ADDED": prompt_yes_no("Show when torrent was added?", default=False),
+        "EMBED_SHOW_TIME_SINCE_STARTED": prompt_yes_no("Show how long torrent has been active?", default=False),
     }
     
     return settings
@@ -333,16 +333,8 @@ def main():
             config["WEBHOOK_URL"] = webhook_url
             break
     
-    # Server Port
-    print_header("Step 2: Server Configuration")
-    config["PORT"] = prompt_input("Server port", default="5000", required=False)
-    config["ACTIVE_UPDATE_INTERVAL"] = prompt_input("Update interval in seconds (while downloads active)", default="15", required=False)
-    log_mb = prompt_input("Maximum log file size in MB", default="10", required=False)
-    # Convert MB to bytes for storage in .env
-    config["LOG_MAX_SIZE"] = str(int(float(log_mb) * 1048576))
-    
     # qBittorrent Configuration
-    print_header("Step 3: qBittorrent Configuration")
+    print_header("Step 2: qBittorrent Configuration")
     print("Enter your qBittorrent Web UI URL (e.g., http://127.0.0.1:8080)\n")
     
     while True:
@@ -356,8 +348,12 @@ def main():
     config["QB_USER"] = prompt_input("qBittorrent username", required=False)
     config["QB_PASS"] = prompt_input("qBittorrent password", required=False)
     
+    # Server Port
+    print_header("Step 3: Server Configuration")
+    config["PORT"] = prompt_input("Server port (for webhook server)", default="8383", required=False)
+    
     # Sonarr/Radarr Configuration (optional)
-    print_header("Step 3.5: Sonarr/Radarr Configuration (Optional)")
+    print_header("Step 4: Sonarr/Radarr Configuration (Optional)")
     print("Configure Sonarr and/or Radarr to enable automatic webhook creation.")
     print("Leave blank to skip and manually configure webhooks later.\n")
     
@@ -375,19 +371,41 @@ def main():
     else:
         config["RADARR_API_KEY"] = ""
     
+    # Ask if user wants defaults or advanced configuration
+    print_header("Step 5: Configuration Mode")
+    print("You can use recommended defaults for the remaining settings,")
+    print("or customize them with advanced configuration.\n")
+    print("Recommended defaults:")
+    print(f"  • Update interval: 6 seconds")
+    print(f"  • Log file size: 10 MB")
+    print(f"  • Embed display: ETA only\n")
+    
+    use_advanced = not prompt_yes_no("Use recommended defaults?", default=True)
+    
+    if use_advanced:
+        # Advanced Configuration
+        print_header("Step 5a: Advanced Configuration")
+        config["ACTIVE_UPDATE_INTERVAL"] = prompt_input("Update interval in seconds (while downloads active)", default="6", required=False)
+        log_mb = prompt_input("Maximum log file size in MB", default="10", required=False)
+        config["LOG_MAX_SIZE"] = str(int(float(log_mb) * 1048576))
+    else:
+        # Use defaults
+        config["ACTIVE_UPDATE_INTERVAL"] = "6"
+        config["LOG_MAX_SIZE"] = str(10 * 1048576)
+    
     # Send initial test message with default settings to verify webhook
-    print_header("Step 4: Discord Webhook Test")
+    print_header("Step 6: Discord Webhook Test")
     
     print("Let's verify your webhook works by sending a test message!")
     print("This will send a test embed with mock torrent data to your Discord channel.\n")
     
     # Use default embed settings for initial test
     default_embed_settings = {
-        "EMBED_SHOW_DOWNLOAD_SPEED": True,
-        "EMBED_SHOW_UPLOAD_SPEED": True,
+        "EMBED_SHOW_DOWNLOAD_SPEED": False,
+        "EMBED_SHOW_UPLOAD_SPEED": False,
         "EMBED_SHOW_ETA": True,
-        "EMBED_SHOW_TIME_ADDED": True,
-        "EMBED_SHOW_TIME_SINCE_STARTED": True,
+        "EMBED_SHOW_TIME_ADDED": False,
+        "EMBED_SHOW_TIME_SINCE_STARTED": False,
     }
     
     if prompt_yes_no("Send test message to Discord now?", default=True):
@@ -431,64 +449,78 @@ def main():
         print_warning("Skipping test message. Configuration will continue without validation.\n")
         message_id = None
     
-    # Optional Settings
-    print_header("Step 5: Optional Settings")
-    config["MESSAGE"] = prompt_input("Optional message to send with embeds", default="Download status update", required=False)
-    
-    print("\nCategory Filter (optional):")
-    print("  Leave blank to show ALL torrents.")
-    print("  Or enter comma-separated category substrings to filter (e.g., 'tv-arr,movies-arr')\n")
-    config["QB_CATEGORIES"] = prompt_input("Category filter", required=False)
-    
-    # Embed Display Settings with Live Discord Preview
-    print_header("Step 6: Embed Display Customization")
-    
-    if message_id:
-        print("Now let's customize what information to show in the embed.")
-        print("After you configure the settings, we'll update the test message in Discord")
-        print("so you can see exactly how it will look.\n")
+    # Optional Settings (conditional on advanced mode)
+    if use_advanced:
+        print_header("Step 7: Optional Settings")
+        config["MESSAGE"] = prompt_input("Optional message to send with embeds", default="Download status update", required=False)
+        
+        print("\nCategory Filter (optional):")
+        print("  Leave blank to show ALL torrents.")
+        print("  Or enter comma-separated category substrings to filter (e.g., 'tv-arr,movies-arr')\n")
+        config["QB_CATEGORIES"] = prompt_input("Category filter", required=False)
     else:
-        print("Configure what information to show in the Discord embed:\n")
+        # Use defaults - no message, no category filter
+        config["MESSAGE"] = ""
+        config["QB_CATEGORIES"] = ""
     
-    config["MESSAGE_ID"] = message_id or ""  # Use captured message ID or empty
-    
-    while True:
-        embed_settings = get_embed_settings()
-        config.update(embed_settings)
+    # Embed Display Settings with Live Discord Preview (conditional on advanced mode)
+    if use_advanced:
+        print_header("Step 8: Embed Display Customization")
         
         if message_id:
-            # Update the existing test message with new settings
-            updated_id = send_test_message_to_discord(
-                config['WEBHOOK_URL'],
-                embed_settings,
-                config.get('MESSAGE'),
-                existing_message_id=message_id
-            )
-            
-            if not updated_id:
-                print_warning("Could not update test message, but settings are saved.")
-            else:
-                print("\n" + Colors.BOLD + Colors.GREEN + "=" * 70 + Colors.END)
-                print(Colors.BOLD + Colors.GREEN + "CHECK YOUR DISCORD CHANNEL NOW!" + Colors.END)
-                print(Colors.BOLD + Colors.GREEN + "=" * 70 + Colors.END)
-                print(f"\n{Colors.BOLD}The test message has been updated with your settings.{Colors.END}\n")
-            
-            if prompt_yes_no("Does the message look good in Discord?", default=True):
-                print_success("Perfect! Settings confirmed.")
-                break
-            
-            print("\nLet's adjust the settings and try again...\n")
+            print("Now let's customize what information to show in the embed.")
+            print("After you configure the settings, we'll update the test message in Discord")
+            print("so you can see exactly how it will look.\n")
         else:
-            # No test message sent, just confirm settings
-            show_embed_preview(embed_settings)
+            print("Configure what information to show in the Discord embed:\n")
+        
+        config["MESSAGE_ID"] = message_id or ""  # Use captured message ID or empty
+        
+        while True:
+            embed_settings = get_embed_settings()
+            config.update(embed_settings)
             
-            if prompt_yes_no("Do these settings look good?", default=True):
-                break
-            
-            print("\nLet's adjust the settings...\n")
+            if message_id:
+                # Update the existing test message with new settings
+                updated_id = send_test_message_to_discord(
+                    config['WEBHOOK_URL'],
+                    embed_settings,
+                    config.get('MESSAGE'),
+                    existing_message_id=message_id
+                )
+                
+                if not updated_id:
+                    print_warning("Could not update test message, but settings are saved.")
+                else:
+                    print("\n" + Colors.BOLD + Colors.GREEN + "=" * 70 + Colors.END)
+                    print(Colors.BOLD + Colors.GREEN + "CHECK YOUR DISCORD CHANNEL NOW!" + Colors.END)
+                    print(Colors.BOLD + Colors.GREEN + "=" * 70 + Colors.END)
+                    print(f"\n{Colors.BOLD}The test message has been updated with your settings.{Colors.END}\n")
+                
+                if prompt_yes_no("Does the message look good in Discord?", default=True):
+                    print_success("Perfect! Settings confirmed.")
+                    break
+                
+                print("\nLet's adjust the settings and try again...\n")
+            else:
+                # No test message sent, just confirm settings
+                show_embed_preview(embed_settings)
+                
+                if prompt_yes_no("Do these settings look good?", default=True):
+                    break
+                
+                print("\nLet's adjust the settings...\n")
+    else:
+        # Use default embed settings (ETA only)
+        config["MESSAGE_ID"] = message_id or ""
+        config["EMBED_SHOW_DOWNLOAD_SPEED"] = False
+        config["EMBED_SHOW_UPLOAD_SPEED"] = False
+        config["EMBED_SHOW_ETA"] = True
+        config["EMBED_SHOW_TIME_ADDED"] = False
+        config["EMBED_SHOW_TIME_SINCE_STARTED"] = False
     
     # Message ID confirmation
-    print_header("Step 7: Configuration Summary")
+    print_header("Step 9: Configuration Summary")
     
     print(f"{Colors.BOLD}Configuration Complete!{Colors.END}\n")
     print(f"• Discord webhook configured")

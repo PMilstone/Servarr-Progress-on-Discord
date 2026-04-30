@@ -119,8 +119,8 @@ MOCK_COMPLETED_TORRENTS = [
 ]
 
 # Constants
-DEFAULT_PORT = 5000
-DEFAULT_UPDATE_INTERVAL = 15
+DEFAULT_PORT = 8383
+DEFAULT_UPDATE_INTERVAL = 6
 DEFAULT_QB_URL = "http://127.0.0.1:8080"
 MIN_UPDATE_INTERVAL = 1
 DEFAULT_LOG_MAX_SIZE = 10 * 1024 * 1024  # 10 MB in bytes
@@ -220,7 +220,7 @@ def validate_config(cfg: dict) -> None:
         errors.append(
             f"ACTIVE_UPDATE_INTERVAL must be >= 1 second, got: {interval}\n"
             "    → Check ACTIVE_UPDATE_INTERVAL value in .env file\n"
-            "    → Recommended: 15 (updates every 15 seconds)"
+            "    → Recommended: 6 (updates every 6 seconds)"
         )
     
     # Validate QB_URL format
@@ -262,11 +262,11 @@ def load_config():
         "QB_CATEGORIES": os.getenv("QB_CATEGORIES"),  # None by default means no filtering
         "MESSAGE": os.getenv("MESSAGE"),
         "MESSAGE_ID": os.getenv("MESSAGE_ID"),
-        "EMBED_SHOW_DOWNLOAD_SPEED": _env_bool("EMBED_SHOW_DOWNLOAD_SPEED", True),
-        "EMBED_SHOW_UPLOAD_SPEED": _env_bool("EMBED_SHOW_UPLOAD_SPEED", True),
+        "EMBED_SHOW_DOWNLOAD_SPEED": _env_bool("EMBED_SHOW_DOWNLOAD_SPEED", False),
+        "EMBED_SHOW_UPLOAD_SPEED": _env_bool("EMBED_SHOW_UPLOAD_SPEED", False),
         "EMBED_SHOW_ETA": _env_bool("EMBED_SHOW_ETA", True),
-        "EMBED_SHOW_TIME_ADDED": _env_bool("EMBED_SHOW_TIME_ADDED", True),
-        "EMBED_SHOW_TIME_SINCE_STARTED": _env_bool("EMBED_SHOW_TIME_SINCE_STARTED", True),
+        "EMBED_SHOW_TIME_ADDED": _env_bool("EMBED_SHOW_TIME_ADDED", False),
+        "EMBED_SHOW_TIME_SINCE_STARTED": _env_bool("EMBED_SHOW_TIME_SINCE_STARTED", False),
     }
     validate_config(cfg)
     return cfg
