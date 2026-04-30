@@ -8,9 +8,10 @@ echo.
 REM Get the current directory
 set "SCRIPT_DIR=%~dp0"
 set "BAT_FILE=%SCRIPT_DIR%Servarr-Progress-on-Discord.bat"
+set "POWERSHELL=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
 
 REM Check if shortcut exists using PowerShell
-powershell -Command "$WShell = New-Object -ComObject WScript.Shell; $Startup = $WShell.SpecialFolders('Startup'); Test-Path ($Startup + '\Servarr-Progress-on-Discord.lnk')" >nul 2>&1
+"%POWERSHELL%" -Command "$WShell = New-Object -ComObject WScript.Shell; $Startup = $WShell.SpecialFolders('Startup'); Test-Path ($Startup + '\Servarr-Progress-on-Discord.lnk')" >nul 2>&1
 
 if errorlevel 1 (
     REM Shortcut does not exist - create it
@@ -18,7 +19,7 @@ if errorlevel 1 (
     echo.
     echo Creating startup shortcut...
     
-    powershell -Command "$WShell = New-Object -ComObject WScript.Shell; $Startup = $WShell.SpecialFolders('Startup'); $Shortcut = $WShell.CreateShortcut($Startup + '\Servarr-Progress-on-Discord.lnk'); $Shortcut.TargetPath = '%BAT_FILE%'; $Shortcut.WorkingDirectory = '%SCRIPT_DIR%'; $Shortcut.WindowStyle = 7; $Shortcut.Save()"
+    "%POWERSHELL%" -Command "$WShell = New-Object -ComObject WScript.Shell; $Startup = $WShell.SpecialFolders('Startup'); $Shortcut = $WShell.CreateShortcut($Startup + '\\Servarr-Progress-on-Discord.lnk'); $Shortcut.TargetPath = '%BAT_FILE%'; $Shortcut.WorkingDirectory = '%SCRIPT_DIR%'; $Shortcut.WindowStyle = 7; $Shortcut.Save()"
     
     if errorlevel 1 (
         echo Error: Failed to create shortcut
@@ -40,7 +41,7 @@ if errorlevel 1 (
         echo.
         echo Removing startup shortcut...
         
-        powershell -Command "$WShell = New-Object -ComObject WScript.Shell; $Startup = $WShell.SpecialFolders('Startup'); Remove-Item ($Startup + '\Servarr-Progress-on-Discord.lnk')"
+        "%POWERSHELL%" -Command "$WShell = New-Object -ComObject WScript.Shell; $Startup = $WShell.SpecialFolders('Startup'); Remove-Item ($Startup + '\\Servarr-Progress-on-Discord.lnk')"
         
         if errorlevel 1 (
             echo Error: Failed to remove shortcut

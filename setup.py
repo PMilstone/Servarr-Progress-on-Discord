@@ -712,11 +712,15 @@ def main():
             script_dir = Path(__file__).parent.absolute()
             bat_file = script_dir / "Servarr-Progress-on-Discord.bat"
             
+            # Get PowerShell path
+            powershell_exe = os.path.join(os.environ.get('SystemRoot', 'C:\\Windows'), 
+                                          'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe')
+            
             # PowerShell command to create shortcut
             ps_command = f"""
                 $WShell = New-Object -ComObject WScript.Shell;
                 $Startup = $WShell.SpecialFolders('Startup');
-                $Shortcut = $WShell.CreateShortcut($Startup + '\\Servarr-Progress-on-Discord.lnk');
+                $Shortcut = $WShell.CreateShortcut($Startup + '\\\\Servarr-Progress-on-Discord.lnk');
                 $Shortcut.TargetPath = '{bat_file}';
                 $Shortcut.WorkingDirectory = '{script_dir}';
                 $Shortcut.WindowStyle = 7;
@@ -724,7 +728,7 @@ def main():
             """
             
             result = subprocess.run(
-                ["powershell", "-Command", ps_command],
+                [powershell_exe, "-Command", ps_command],
                 capture_output=True,
                 text=True
             )
