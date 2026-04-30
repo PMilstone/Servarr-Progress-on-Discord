@@ -67,6 +67,20 @@ Or manually create webhooks:
 2. Add Webhook with URL: `http://your-server-ip:8383/webhook`
 3. Enable triggers: On Grab, On Download/Import Complete
 
+## Autostart on Boot (Windows)
+
+The setup wizard offers to configure autostart during the initial setup. To manage it later, run:
+
+```powershell
+.\toggle-autostart.bat
+```
+
+This utility will:
+- **Enable autostart** if it's currently disabled
+- **Prompt to disable** if it's currently enabled
+
+The autostart feature creates a shortcut in your Windows Startup folder that runs the service automatically when you log in.
+
 ## License
 
 Released into the **public domain** under [The Unlicense](LICENSE).
