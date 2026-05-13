@@ -397,6 +397,13 @@ def webhook():
         return jsonify({"status": "ignored", "event": event_type}), 200
 
     try:
+        # For "Grab" events, delay to give qBittorrent time to process the torrent
+        # Sonarr/Radarr send the grab webhook immediately when they send the torrent,
+        # but qBittorrent needs a moment to add it to the queue
+        if event_type.lower() == "grab":
+            logger.info("Grab event detected - waiting 3 seconds for qBittorrent to process torrent")
+            time.sleep(3)
+        
         has_active = run_status_update(cfg, use_test_data=_use_test_data)
         if has_active:
             ensure_active_monitor_running()
